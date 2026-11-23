@@ -26,6 +26,9 @@ def is_randomised(mac: str) -> bool:
 def lookup(mac: str) -> str | None:
     if is_randomised(mac):
         return "Private MAC (phone/laptop)"
+    from ..identify import oui  # up-to-date list first, built-in list as a fallback
+    if fresh := oui.lookup(mac):
+        return fresh
     db = _db()
     if not db:
         return None

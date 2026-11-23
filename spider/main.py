@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,6 +17,8 @@ from .config import get_settings
 from .db import connect, init_db
 from .pihole import client as pihole
 from .watchtower import scanner
+from .identify import listen as identify_listen
+from .identify import run as identify
 from .traffic import collector as traffic_collector
 from .traffic import views as traffic_views
 from .watchtower import service as watchtower
@@ -64,6 +67,18 @@ async def scan_loop() -> None:
         await asyncio.sleep(settings_store.get("scan_interval"))
 
 
+async def identify_loop() -> None:
+    await asyncio.sleep(15)  # let the first scan find devices
+    if not get_settings().demo:
+        identify_listen.start()
+    while True:
+        try:
+            await asyncio.to_thread(identify.run)
+        except Exception:
+            log.exception("Identification crashed")
+        await asyncio.sleep(300)
+
+
 async def update_loop() -> None:
     await asyncio.sleep(20)
     while True:
@@ -97,7 +112,7 @@ async def traffic_loop() -> None:
 async def lifespan(app: FastAPI):
     init_db()
     tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop()), asyncio.create_task(blocks_loop()),
-             asyncio.create_task(update_loop())]
+             asyncio.create_task(update_loop()), asyncio.create_task(identify_loop())]
     yield
     for t in tasks:
         t.cancel()
@@ -346,6 +361,10 @@ def devices(_=Depends(viewer)):
     blocks = blocking.current()
     for d in rows:
         d["block"] = blocks.get(d["mac"])
+        try:
+            d["identity"] = json.loads(d.get("identity") or "[]")
+        except ValueError:
+            d["identity"] = []
         d["protected"] = blocking.protected_reason(d["ip"])
     return rows
 
@@ -353,6 +372,7 @@ def devices(_=Depends(viewer)):
 class DeviceUpdate(BaseModel):
     name: str | None = None
     known: bool | None = None
+    kind: str | None = None  # an admin's correction of what the device is; "" clears it
 
 
 @app.patch("/api/devices/{mac}")
@@ -364,6 +384,11 @@ def update_device(mac: str, body: DeviceUpdate, _=Depends(auth.require_admin)):
             conn.execute("UPDATE devices SET name = ? WHERE mac = ?", ((body.name.strip() or None) and body.name.strip()[:40], mac))
         if body.known is not None:
             conn.execute("UPDATE devices SET known = ? WHERE mac = ?", (int(body.known), mac))
+        if body.kind is not None:
+            from .identify.classify import KINDS
+            if body.kind and body.kind not in KINDS:
+                raise HTTPException(422, "Pick a type from the list.")
+            conn.execute("UPDATE devices SET kind_user = ? WHERE mac = ?", (body.kind or None, mac))
     return {"ok": True}
 
 
@@ -411,6 +436,21 @@ async def version_update(admin=Depends(auth.require_admin)):
         raise HTTPException(502, str(exc))
     log.info("Update requested by %s through Portainer", admin["username"])
     return {"ok": True}
+
+
+@app.post("/api/devices/{mac}/identify")
+async def identify_device(mac: str, _=Depends(auth.require_admin)):
+    with connect() as conn:
+        if not conn.execute("SELECT 1 FROM devices WHERE mac = ?", (mac,)).fetchone():
+            raise HTTPException(404, "Unknown device")
+    d = await asyncio.to_thread(identify.identify_now, mac)
+    return {"kind": d["kind"], "model": d["model"], "confidence": d["confidence"]}
+
+
+@app.get("/api/kinds")
+def kinds(_=Depends(viewer)):
+    from .identify.classify import KINDS
+    return KINDS
 
 
 @app.get("/api/events")

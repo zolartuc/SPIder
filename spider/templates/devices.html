@@ -18,11 +18,12 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th scope="col"><span class="sr-only">Status</span></th><th scope="col">Name</th><th scope="col">Address</th><th scope="col">Made by</th><th scope="col">Hardware ID</th><th scope="col">First seen</th><th scope="col">Last seen</th><th scope="col">Internet</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+        <tr><th scope="col"><span class="sr-only">Status</span></th><th scope="col">Name</th><th scope="col">Address</th><th scope="col">What it is</th><th scope="col">Hardware ID</th><th scope="col">First seen</th><th scope="col">Last seen</th><th scope="col">Internet</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
       </thead>
       <tbody id="devices-body"></tbody>
     </table>
   </div>
+  <div class="why-pop" id="why-pop" role="dialog" aria-label="How SPIder knows" hidden></div>
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ asset('js/devices.js') }}"></script>{% endblock %}

@@ -45,6 +45,18 @@ All screenshots use made-up demo data (see [Try the demo](#try-the-demo)).
 - Online/offline history and IP-change tracking
 - Lets you name devices and mark them as known, so strangers stand out
 
+### Knows what each device is
+Not just "Tuya" or "Samsung": SPIder works out **what** each device is (a smart plug, a Samsung TV, an iPad, a Bambu P1S, a Windows PC...) and shows **how it knows**, with a confidence level. Admins can correct it, and SPIder remembers. Clues come from:
+
+- **Its own announcement (DHCP):** devices broadcast their name (and often Android/Windows/Linux) when they join. SPIder just listens
+- **Bonjour (mDNS):** Chromecasts give their model and room, printers their model, HomeKit gear its category, iPhones and Macs their model code
+- **UPnP:** TVs, speakers and routers describe their make, model and friendly name
+- **Bambu Lab printers** announce their model and name
+- **A light port check,** once a day per device: e.g. Tuya's local port, RTSP cameras, printers, Apple's sync port, Remote Desktop, plus a web page title if there is one
+- **The maker** from the hardware ID, using Wireshark's up-to-date list (refreshed weekly), and **Pi-hole's** device names when connected
+
+Everything stays on your network; only the weekly maker-list download reaches the internet.
+
 ### Pi-hole stats (working now)
 - Shows how much was blocked today, where lookups went (blocked, cached, upstream), a 24-hour chart, the most-blocked domains and your busiest devices, using SPIder's own device names
 - Supports Pi-hole **v6** (REST API) and **v5** (api.php)

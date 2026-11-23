@@ -21,6 +21,44 @@
     return mins >= 60 ? `1 h ${mins - 60} min left` : `${mins} min left`;
   };
 
+  const CONF = { high: "Sure", medium: "Likely", low: "Best guess" };
+  function whatCell(d) {
+    const kind = d.kind || "Not identified yet";
+    const detail = d.model || (d.vendor && !String(d.vendor).startsWith("Private") ? d.vendor : "");
+    return `<button type="button" class="what-btn conf-${esc(d.confidence || "low")}${d.kind_user ? " by-you" : ""}" data-why="${esc(d.mac)}" aria-haspopup="dialog">
+      <b>${esc(kind)}</b>${detail ? `<small>${esc(detail)}</small>` : ""}</button>`;
+  }
+
+  let devicesByMac = new Map(), kinds = [];
+  async function showWhy(mac, anchor) {
+    const d = devicesByMac.get(mac), pop = $("why-pop");
+    if (!d || !anchor) return;
+    if (isAdmin && !kinds.length) kinds = await api("/api/kinds").catch(() => []);
+    const ev = d.identity || [];
+    pop.innerHTML = `
+      <div class="why-head">
+        <div><h3>${esc(d.kind || "Not identified yet")}</h3>
+          <p class="muted small">${esc(d.model || "")}${d.model ? ", " : ""}${esc(CONF[d.confidence] || "Best guess")}${d.kind_user ? ", set by an admin" : ""}</p></div>
+        <button type="button" class="quiet" id="why-close" aria-label="Close">Close</button>
+      </div>
+      <h4>How SPIder knows</h4>
+      ${ev.length ? `<ul class="evidence">${ev.map((e) => `<li><span>${esc(e.source)}</span>${esc(e.text)}</li>`).join("")}</ul>`
+        : `<p class="muted">No clues yet. SPIder learns more as the device talks on the network, or try Identify again.</p>`}
+      ${isAdmin ? `
+        <div class="why-actions">
+          <label>Correct it <select id="why-kind" data-mac="${esc(mac)}">
+            <option value="">Let SPIder decide</option>
+            ${kinds.map((k) => `<option ${k === d.kind_user ? "selected" : ""}>${esc(k)}</option>`).join("")}
+          </select></label>
+          <button type="button" class="secondary" id="why-identify" data-mac="${esc(mac)}">Identify again</button>
+        </div>` : ""}`;
+    pop.hidden = false;
+    const r = anchor.getBoundingClientRect(), host = pop.offsetParent.getBoundingClientRect();
+    pop.style.top = `${r.bottom - host.top + 6}px`;
+    pop.style.left = `${Math.max(8, Math.min(r.left - host.left, host.width - pop.offsetWidth - 8))}px`;
+    $("why-close").focus();
+  }
+
   function accessCell(d) {
     const b = d.block;
     const state = b ? (b.until ? `Paused, ${left(b.until)}` : "Blocked") : "Allowed";
@@ -42,6 +80,7 @@
 
   async function load() {
     const [devices, blocks] = await Promise.all([api("/api/devices"), api("/api/blocks").catch(() => null)]);
+    devicesByMac = new Map(devices.map((d) => [d.mac, d]));
     if (blocks) access = blocks;
     $("access-note").hidden = access.available || !isAdmin;
     $("access-note").textContent = access.reason || "";
@@ -56,7 +95,7 @@
                     placeholder="${esc(d.hostname || "Add a name")}" aria-label="Name for ${esc(d.ip)}">`
           : `<span class="${d.name ? "" : "muted"}">${esc(d.name || d.hostname || "Unnamed")}</span>`}</td>
         <td class="data">${esc(d.ip)}</td>
-        <td>${esc(d.vendor || "Unknown")}</td>
+        <td class="what">${whatCell(d)}</td>
         <td class="data dim">${esc(d.mac)}</td>
         <td class="dim">${dateOf(d.first_seen)}</td>
         <td class="dim">${ago(d.last_seen)}</td>
@@ -86,6 +125,34 @@
     try {
       await api(`/api/devices/${encodeURIComponent(e.target.dataset.mac)}`, { method: "PATCH", body: JSON.stringify({ name: e.target.value }) });
       toast("Name saved");
+    } catch (err) { toast(err.message); }
+  });
+
+  document.addEventListener("click", async (e) => {
+    const why = e.target.closest("[data-why]");
+    if (why) { showWhy(why.dataset.why, why); return; }
+    if (e.target.closest("#why-close")) { $("why-pop").hidden = true; return; }
+    const again = e.target.closest("#why-identify");
+    if (again) {
+      again.disabled = true; again.textContent = "Identifying…";
+      try {
+        const r = await api(`/api/devices/${encodeURIComponent(again.dataset.mac)}/identify`, { method: "POST" });
+        toast(`It looks like: ${r.kind}${r.model ? ` (${r.model})` : ""}`);
+        await load(); showWhy(again.dataset.mac, document.querySelector(`[data-why="${CSS.escape(again.dataset.mac)}"]`));
+      } catch (err) { toast(err.message); again.disabled = false; again.textContent = "Identify again"; }
+      return;
+    }
+    if (!e.target.closest("#why-pop")) $("why-pop").hidden = true;
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("why-pop").hidden = true; });
+  document.addEventListener("change", async (e) => {
+    if (e.target.id !== "why-kind") return;
+    const mac = e.target.dataset.mac;
+    try {
+      await api(`/api/devices/${encodeURIComponent(mac)}`, { method: "PATCH", body: JSON.stringify({ kind: e.target.value }) });
+      await api(`/api/devices/${encodeURIComponent(mac)}/identify`, { method: "POST" }).catch(() => {});
+      toast(e.target.value ? `Saved: ${e.target.value}` : "SPIder will decide again");
+      await load(); showWhy(mac, document.querySelector(`[data-why="${CSS.escape(mac)}"]`));
     } catch (err) { toast(err.message); }
   });
 
@@ -121,7 +188,7 @@
   $("only-strangers").addEventListener("change", load);
   document.addEventListener("spider:refresh", load);
 
-  const refresh = () => { const a = document.activeElement; if (!a?.classList.contains("name") && !a?.classList.contains("access")) load().catch(console.error); };
+  const refresh = () => { const a = document.activeElement; if (!a?.classList.contains("name") && !a?.classList.contains("access") && $("why-pop").hidden) load().catch(console.error); };
   load().catch(console.error);
   setInterval(refresh, 15_000);
 })();

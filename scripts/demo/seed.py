@@ -104,6 +104,34 @@ settings_store.update({
     "ntfy_topic": "spider-demo-alerts",
 })
 
+# Identification clues, as SPIder would gather them on a real network.
+from spider.identify import facts as id_facts  # noqa: E402
+from spider.identify import run as id_run  # noqa: E402
+
+mac = {d[0]: d[1] for d in DEVICES}
+DEMO_FACTS = [
+    ("192.168.1.2", "ports", {"open": [22, 53, 80], "web": {"port": 80, "title": "Pi-hole - pihole"}}),
+    ("192.168.1.10", "ports", {"open": [22, 8080], "web": {"port": 8080, "title": "Your network | SPIder"}}),
+    ("192.168.1.20", "bambu", {"model": "P1S", "name": "Workshop P1S"}),
+    ("192.168.1.21", "ssdp", {"manufacturer": "Samsung Electronics", "model": "UE55CU7100",
+                              "device_type": "urn:schemas-upnp-org:device:MediaRenderer:1", "friendly_name": "[TV] Living Room"}),
+    ("192.168.1.22", "mdns", {"services": ["_sonos._tcp", "_spotify-connect._tcp"], "names": ["Kitchen"]}),
+    ("192.168.1.22", "ssdp", {"manufacturer": "Sonos, Inc.", "model": "Sonos One", "device_type": "urn:schemas-upnp-org:device:ZonePlayer:1"}),
+    ("192.168.1.23", "ports", {"open": []}),
+    ("192.168.1.24", "ports", {"open": [80], "web": {"port": 80, "title": "Shelly Plug S"}}),
+    ("192.168.1.30", "dhcp", {"hostname": "Pixel-8", "vendor_class": "android-dhcp-14"}),
+    ("192.168.1.31", "mdns", {"services": ["_companion-link._tcp"], "txt": {"rpmd": "iPhone15,3"}}),
+    ("192.168.1.31", "ports", {"open": [62078]}),
+    ("192.168.1.32", "dhcp", {"hostname": "LAPTOP-WORK42", "vendor_class": "MSFT 5.0"}),
+    ("192.168.1.33", "dhcp", {"hostname": "DESKTOP-GAMING", "vendor_class": "MSFT 5.0"}),
+    ("192.168.1.40", "ports", {"open": [6668]}),
+    ("192.168.1.41", "dhcp", {"hostname": "amazon-echo"}),
+    ("192.168.1.51", "dhcp", {"hostname": "xiaomi-camera-c300", "vendor_class": "udhcp 1.31.1"}),
+]
+for ip, source, values in DEMO_FACTS:
+    id_facts.add_many(mac[ip], source, values)
+id_run.classify_all()
+
 admin = auth.create_user("demo", "demo-password", "admin")
 auth.create_user("guest", "guest-password", "viewer")
 auth.set_theme(admin["id"], "bridge")

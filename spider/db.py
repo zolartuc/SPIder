@@ -77,6 +77,16 @@ CREATE TABLE IF NOT EXISTS blocks (
     by_user     TEXT
 );
 
+-- Clues about what a device is, from every identification source (dhcp, mdns, ssdp, ports, bambu...).
+CREATE TABLE IF NOT EXISTS device_facts (
+    mac         TEXT NOT NULL,
+    source      TEXT NOT NULL,
+    key         TEXT NOT NULL,
+    value       TEXT NOT NULL,
+    seen        TEXT NOT NULL,
+    PRIMARY KEY (mac, source, key)
+);
+
 CREATE TABLE IF NOT EXISTS meta (
     key         TEXT PRIMARY KEY,
     value       TEXT NOT NULL
@@ -101,6 +111,12 @@ def init_db() -> None:
         # Added later: whether someone has looked at an event (clears "unusual" flags on the web).
         if "ack" not in [r[1] for r in conn.execute("PRAGMA table_info(events)")]:
             conn.execute("ALTER TABLE events ADD COLUMN ack INTEGER NOT NULL DEFAULT 0")
+        # Added later: what SPIder thinks each device is, and an admin's correction.
+        have = [r[1] for r in conn.execute("PRAGMA table_info(devices)")]
+        for col, kind in (("kind", "TEXT"), ("model", "TEXT"), ("confidence", "TEXT"),
+                          ("identity", "TEXT"), ("kind_user", "TEXT"), ("identified_at", "TEXT")):
+            if col not in have:
+                conn.execute(f"ALTER TABLE devices ADD COLUMN {col} {kind}")
 
 
 @contextmanager

@@ -6,6 +6,7 @@ Everything is normalised so the dashboard doesn't care which version is running:
 """
 
 import logging
+import re
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -351,3 +352,26 @@ def set_paused(ident: str, paused: bool) -> dict:
         return _call(fetch, timeout=15)
     except RuntimeError as exc:
         return {"status": "unsafe", "error": str(exc)}
+
+
+# --------------------------------------------------------------------------- Pi-hole's device list (names)
+
+def network_devices() -> list[dict]:
+    """Pi-hole v6's own list of devices: [{"mac", "names": [...], "ips": [...]}]. Empty if unavailable."""
+
+    def fetch(client, base, password):
+        d = _v6_get(client, base, password, "/api/network/devices", {"max_devices": 250, "max_addresses": 4})
+        if d is None:
+            return {"status": "ok", "devices": []}
+        out = []
+        for dev in d.get("devices", []):
+            mac = (dev.get("hwaddr") or "").lower()
+            if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac):
+                continue
+            ips = [a.get("ip") for a in dev.get("ips", []) if a.get("ip")]
+            names = [a.get("name") for a in dev.get("ips", []) if a.get("name")]
+            out.append({"mac": mac, "ips": ips, "names": names})
+        return {"status": "ok", "devices": out}
+
+    res = _call(fetch, timeout=10)
+    return res.get("devices", []) if res.get("status") == "ok" else []
