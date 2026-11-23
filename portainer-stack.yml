@@ -1,0 +1,42 @@
+# SPIder stack for Portainer (Stacks > Add stack > Repository).
+#
+# Portainer clones this repo onto the Pi and builds the image there.
+# Settings below are only starting values: everything except SPIDER_PORT and
+# SPIDER_ALLOW_SYSTEM_CHANGES can also be changed later on SPIder's Settings page.
+#
+# Data lives in the named volume "spider-data", NOT a folder in the repo, so it
+# survives Portainer re-pulling and redeploying the stack.
+
+services:
+  spider:
+    build: .
+    image: spider:latest
+    container_name: spider
+    restart: unless-stopped
+    # Host networking so the scanner sees your real LAN, not Docker's internal network.
+    network_mode: host
+    # Lets the scanner send raw ARP packets without making the container privileged.
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      SPIDER_HOST: 0.0.0.0
+      SPIDER_PORT: ${SPIDER_PORT:-8080}
+      SPIDER_DATA_DIR: /app/data
+      TZ: ${TZ:-Europe/London}
+      # Optional. Leave blank to auto-detect / set later in Settings.
+      SPIDER_SUBNET: ${SPIDER_SUBNET:-}
+      SPIDER_PIHOLE_URL: ${SPIDER_PIHOLE_URL:-}
+      SPIDER_PIHOLE_PASSWORD: ${SPIDER_PIHOLE_PASSWORD:-}
+      SPIDER_NTFY_TOPIC: ${SPIDER_NTFY_TOPIC:-}
+    volumes:
+      - spider-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('SPIDER_PORT','8080')}/api/me\", timeout=4)"]
+      interval: 60s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  spider-data:

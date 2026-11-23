@@ -50,7 +50,7 @@ All screenshots use made-up demo data (see [Try the demo](#try-the-demo)).
 - Supports Pi-hole **v6** (REST API) and **v5** (api.php)
 
 ### Traffic (with a Pi-hole connected)
-- What each **device** talks to: sites, kinds of use (streaming, gaming, smart home, work…) and when it's busy
+- What each **device** talks to: sites, kinds of use (streaming, gaming, smart home, workâ€¦) and when it's busy
 - **First contacts:** after a day learning what's normal for a device, SPIder flags any place it contacts for the first time, like a smart plug that suddenly starts calling a new cloud server. Optional phone alerts
 - Ads and trackers are left to Pi-hole. SPIder only looks at lookups Pi-hole allowed, and keeps 30 days of its own history
 
@@ -119,6 +119,23 @@ To regenerate the README screenshots: `pip install -r requirements-dev.txt`, the
 4. Open `http://<pi-ip>:8080`.
 
 Give the Pi a **fixed IP address** (a DHCP reservation in your router) so you can always find the dashboard.
+
+### With Portainer
+
+`portainer-stack.yml` builds SPIder on the Pi straight from this repository and keeps its data in a named volume, so updates never wipe it.
+
+1. **If the repository is private,** create a GitHub token for Portainer: GitHub > Settings > Developer settings > Personal access tokens > **Fine-grained tokens** > Generate new token.
+   - Repository access: **Only select repositories**, then pick this one
+   - Permissions: **Contents: Read-only** (Metadata: Read-only is added automatically). Nothing else
+2. In Portainer: **Stacks > Add stack**, name it `spider`, choose **Repository**:
+   - Repository URL: `https://github.com/zolartuc/SPIder`
+   - Repository reference: `refs/heads/main`
+   - Compose path: `portainer-stack.yml`
+   - Authentication: on. Username: your GitHub username. Personal access token: the token from step 1
+3. Optional environment variables: `SPIDER_PORT` (default `8080`), `TZ` (default `Europe/London`), `SPIDER_PIHOLE_URL`, `SPIDER_PIHOLE_PASSWORD`, `SPIDER_NTFY_TOPIC`. You can also set these later on SPIder's Settings page.
+4. **Deploy the stack.** The first build takes a few minutes on a Pi 4. Then open `http://<pi-ip>:8080` and create your admin account.
+
+To pick up new versions, turn on **GitOps updates** (polling) in the stack, or press **Pull and redeploy**.
 
 ## Configuration
 
