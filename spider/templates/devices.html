@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="ledger">
+  <div class="ledger-head">
+    <p class="intro muted">
+      {% if user and user.role == "admin" %}
+        Name the devices you recognise and mark them as yours. Anything new will then stand out.
+      {% else %}
+        <a href="/login?next=/devices">Sign in as an admin</a> to name devices or mark them as yours.
+      {% endif %}
+    </p>
+    <div class="filters">
+      <label class="toggle"><input type="checkbox" id="show-offline" checked> Show offline devices</label>
+      <label class="toggle"><input type="checkbox" id="only-strangers"> Only ones not marked as yours</label>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col"><span class="sr-only">Status</span></th><th scope="col">Name</th><th scope="col">Address</th><th scope="col">Made by</th><th scope="col">Hardware ID</th><th scope="col">First seen</th><th scope="col">Last seen</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+      </thead>
+      <tbody id="devices-body"></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/devices.js"></script>{% endblock %}

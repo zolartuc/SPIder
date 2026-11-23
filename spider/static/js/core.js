@@ -1,0 +1,119 @@
+// SPIder: shared helpers, theme, scan status and the user menu. Loaded on every page.
+
+const SP = (() => {
+  const $ = (id) => document.getElementById(id);
+  const body = document.body;
+  const signedIn = body.dataset.signedIn === "true";
+  const isAdmin = body.dataset.role === "admin";
+
+  // Anything that came off the network (hostnames, vendors) is untrusted: escape it.
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function ago(iso) {
+    if (!iso) return "never";
+    const secs = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+    if (secs < 60) return "just now";
+    if (secs < 3600) return `${Math.round(secs / 60)} min ago`;
+    if (secs < 86400) return `${Math.round(secs / 3600)} h ago`;
+    return `${Math.round(secs / 86400)} d ago`;
+  }
+
+  const fmt = (n) => (n == null ? "–" : Number(n).toLocaleString());
+
+  async function api(path, opts = {}) {
+    const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const e = new Error(data.detail || `Request failed (${r.status})`);
+      e.status = r.status; e.field = data.field;
+      throw e;
+    }
+    return data;
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast"); if (!t) return;
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3500);
+  }
+
+  // ---------- device naming helpers
+  const shortName = (d) =>
+    d.name || (d.hostname ? d.hostname.split(".")[0] : null) ||
+    (d.vendor && !d.vendor.startsWith("Private") ? d.vendor.split(/[\s,]/)[0] : null) ||
+    `.${(d.ip || "").split(".").pop()}`;
+
+  const clip = (s, n = 16) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+
+  const tidyVendor = (v) => v.replace(/,?\s*(Inc\.?|Ltd\.?|Co\.?,?|Limited|Corporation|Corp\.?)\s*$/gi, "").replace(/[,.\s]+$/, "");
+
+  function eventWho(e) {
+    if (e.name) return e.name;
+    const ip = (e.detail || "").split(" ")[0];
+    if (!e.vendor || e.vendor.startsWith("Private")) return `A ${e.vendor ? "phone or laptop" : "device"} at ${ip}`;
+    return tidyVendor(e.vendor);
+  }
+
+  const EVENT_TEXT = {
+    new_device: "joined for the first time",
+    online: "came back online",
+    offline: "went offline",
+    ip_changed: "changed address",
+  };
+
+  // ---------- theme
+  function setTheme(name, { save = true } = {}) {
+    document.documentElement.dataset.theme = name;
+    try { localStorage.setItem("spider-theme", name); } catch (e) {}
+    document.querySelectorAll("[data-theme-choice]").forEach((b) =>
+      b.setAttribute("aria-checked", String(b.dataset.themeChoice === name)));
+    if (save && signedIn) api("/api/me/theme", { method: "PUT", body: JSON.stringify({ theme: name }) }).catch(() => {});
+  }
+
+  // ---------- scan status (every page)
+  async function loadStatus() {
+    const el = $("scan-status");
+    try {
+      const s = await api("/api/status");
+      const l = s.last_scan;
+      const btn = $("scan-btn");
+      if (btn) { btn.disabled = s.scanning; btn.textContent = s.scanning ? "Scanning…" : "Scan now"; }
+      if (el) el.textContent = s.scanning ? `Scanning ${l.subnet || "your network"}`
+        : l.error ? `Last scan failed: ${l.error}`
+        : l.at ? `Scanned ${ago(l.at)}, found ${l.found}` : "Waiting for the first scan";
+      return s;
+    } catch (e) {
+      if (el) el.textContent = "";
+      return { scanning: false };
+    }
+  }
+
+  $("scan-btn")?.addEventListener("click", async () => {
+    try { await api("/api/scan", { method: "POST" }); } catch (e) { toast(e.message); return; }
+    const btn = $("scan-btn"); btn.disabled = true; btn.textContent = "Scanning…";
+    const poll = setInterval(async () => {
+      const s = await loadStatus();
+      if (!s.scanning) { clearInterval(poll); document.dispatchEvent(new Event("spider:refresh")); toast("Scan finished"); }
+    }, 1500);
+  });
+
+  // ---------- user menu
+  $("sign-out")?.addEventListener("click", async () => {
+    await api("/api/logout", { method: "POST" }).catch(() => {});
+    location.href = "/";
+  });
+  document.addEventListener("click", (e) => {
+    const m = document.querySelector(".user-menu[open]");
+    if (m && !m.contains(e.target)) m.open = false;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { const m = document.querySelector(".user-menu[open]"); if (m) { m.open = false; m.querySelector("summary").focus(); } }
+  });
+
+  loadStatus();
+  setInterval(loadStatus, 10_000);
+
+  return { $, esc, ago, fmt, api, toast, shortName, clip, eventWho, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
+})();

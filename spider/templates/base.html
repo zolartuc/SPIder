@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme or 'silk' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | SPIder</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  {% if not theme %}
+  <script>
+    // Not signed in: use the theme this browser picked last time.
+    try { document.documentElement.dataset.theme = localStorage.getItem("spider-theme") || "silk"; } catch (e) {}
+  </script>
+  {% endif %}
+  {% include "_fonts.html" %}
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body data-page="{{ page }}" data-role="{{ user.role if user else 'guest' }}" data-signed-in="{{ 'true' if user else 'false' }}">
+<a class="skip" href="#content">Skip to content</a>
+<div class="frame">
+
+  <a class="brand" href="/" aria-label="SPIder home">
+    {% include "_logo.html" %}
+    <span class="wordmark">S<span class="pi">PI</span>der</span>
+  </a>
+
+  <header class="topbar">
+    <h1>{{ title }}</h1>
+    <div class="top-right">
+      <span id="scan-status" class="scan-status"></span>
+      {% if user %}<button id="scan-btn" type="button">Scan now</button>{% endif %}
+      {% if user %}
+      <details class="user-menu">
+        <summary>
+          <span class="avatar" aria-hidden="true">{{ user.username[:1] | upper }}</span>
+          <span class="who"><b>{{ user.username }}</b><small>{{ "Admin" if user.role == "admin" else "Viewer" }}</small></span>
+        </summary>
+        <div class="menu">
+          <a href="/settings#account">Your account</a>
+          <a href="/settings#appearance">Theme</a>
+          <button type="button" id="sign-out">Sign out</button>
+        </div>
+      </details>
+      {% else %}
+      <a class="sign-in" href="/login?next={{ request.url.path }}">Sign in</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Sections">
+    {% for key, href, label in nav %}
+    <a href="{{ href }}" {% if page == key %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+    <div class="rail-fill" aria-hidden="true"></div>
+    <a href="/settings" class="rail-settings" {% if page == "settings" %}aria-current="page"{% endif %}>Settings</a>
+  </nav>
+
+  <main id="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="/static/js/core.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

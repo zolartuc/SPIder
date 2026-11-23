@@ -1,0 +1,16 @@
+services:
+  spider:
+    build: .
+    container_name: spider
+    restart: unless-stopped
+    # Host networking so the scanner sees your real LAN (not Docker's internal network).
+    network_mode: host
+    # Lets scapy send raw ARP packets without running the whole container privileged.
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data

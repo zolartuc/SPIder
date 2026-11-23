@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <figure class="web-wrap">
+    <svg id="web" viewBox="0 0 640 540" role="img" aria-label="Map of devices on your network"></svg>
+    <figcaption class="legend">
+      <span><i class="key live"></i>Online</span>
+      <span><i class="key gone"></i>Offline</span>
+      <span><i class="key stranger"></i>Not marked as yours</span>
+    </figcaption>
+  </figure>
+
+  <aside class="side">
+    <div class="summary">
+      <p class="lead"><strong id="s-online">–</strong> <span id="s-online-text">devices are on your web.</span></p>
+      <p id="s-unknown" class="muted"></p>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Pi-hole</h2><a href="/pihole">Details</a></div>
+      <div id="pihole-body" class="muted">Checking your Pi-hole…</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Latest activity</h2><a href="/activity">All activity</a></div>
+      <ol id="events" class="events" data-limit="5"></ol>
+    </section>
+  </aside>
+</section>
+<div id="tip" class="tip" role="status" hidden></div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/web.js"></script>
+<script src="/static/js/overview.js"></script>
+{% endblock %}

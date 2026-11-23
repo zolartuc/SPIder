@@ -1,0 +1,3 @@
+# Keep Linux line endings in the repo so files work as-is on the Raspberry Pi.
+* text=auto eol=lf
+*.svg text eol=lf

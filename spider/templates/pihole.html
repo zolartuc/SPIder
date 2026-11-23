@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="pihole-page">
+  <div id="pihole-big" class="pihole-big muted">Checking your Pi-hole…</div>
+  <p class="muted small">
+    SPIder reads these numbers from the Pi-hole on your network every 30 seconds.
+    {% if user and user.role == "admin" %}Change which Pi-hole in <a href="/settings#pihole">Settings</a>.{% endif %}
+  </p>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/pihole.js"></script>{% endblock %}

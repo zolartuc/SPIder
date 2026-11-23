@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="activity-page">
+  <div class="chips" role="group" aria-label="Filter activity">
+    <button type="button" class="chip" data-filter="" aria-pressed="true">Everything</button>
+    <button type="button" class="chip" data-filter="new_device" aria-pressed="false">New devices</button>
+    <button type="button" class="chip" data-filter="online" aria-pressed="false">Came online</button>
+    <button type="button" class="chip" data-filter="offline" aria-pressed="false">Went offline</button>
+    <button type="button" class="chip" data-filter="ip_changed" aria-pressed="false">Address changes</button>
+  </div>
+  <div id="timeline" class="timeline"></div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/activity.js"></script>{% endblock %}

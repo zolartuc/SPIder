@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% set admin = user and user.role == "admin" %}
+{% block content %}
+<div class="settings">
+  <nav class="settings-nav" aria-label="Settings sections">
+    <a href="#appearance">Appearance</a>
+    {% if user %}<a href="#account">Your account</a>{% endif %}
+    <a href="#device">This Pi</a>
+    <a href="#network">Network</a>
+    <a href="#scanning">Scanning</a>
+    <a href="#pihole">Pi-hole</a>
+    <a href="#alerts">Alerts</a>
+    <a href="#access">Access</a>
+    {% if admin %}<a href="#users">Users</a>{% endif %}
+  </nav>
+
+  <div class="settings-body">
+    {% if not admin %}
+    <p class="notice">
+      {% if user %}You're signed in as a viewer, so you can look but not change these settings. Ask an admin to make changes.
+      {% else %}You can look at these settings, but you need to <a href="/login?next=/settings">sign in as an admin</a> to change them.{% endif %}
+    </p>
+    {% endif %}
+
+    <!-- Appearance: anyone can change; saved to your account when signed in -->
+    <section class="set" id="appearance">
+      <h2>Appearance</h2>
+      <p class="muted">{% if user %}Saved to your account, so it follows you to any browser.{% else %}Saved in this browser.{% endif %}</p>
+      <div class="theme-grid" role="radiogroup" aria-label="Theme">
+        {% for key, label, note in [
+          ("silk", "Silk", "Dusk blue with dew and wasp-yellow"),
+          ("bridge", "Bridge", "Starship console, elbows and blocks"),
+          ("cyanotype", "Cyanotype", "A blueprint on grid paper"),
+          ("amber", "Amber", "An old monochrome terminal")] %}
+        <button type="button" class="theme-card" data-theme-choice="{{ key }}" role="radio" aria-checked="false">
+          <span class="swatch" data-swatch="{{ key }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <b>{{ label }}</b><small>{{ note }}</small>
+        </button>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if user %}
+    <section class="set" id="account">
+      <h2>Your account</h2>
+      <p class="muted">Signed in as <b>{{ user.username }}</b> ({{ "admin" if admin else "viewer" }}). Changing your password signs you out everywhere else.</p>
+      <form class="form" id="password-form" autocomplete="on">
+        <input type="text" name="username" value="{{ user.username }}" autocomplete="username" hidden>
+        <label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
+        <label>New password <input type="password" name="new" autocomplete="new-password" minlength="8" required>
+          <small class="hint">At least 8 characters.</small></label>
+        <div class="form-foot"><button type="submit">Change password</button><span class="result" role="status"></span></div>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="set" id="device">
+      <h2>This Pi</h2>
+      <dl class="sysinfo" id="sysinfo"></dl>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label>Display name <input name="device_name" maxlength="40">
+            <small class="hint">What SPIder calls itself in alerts.</small></label>
+          <label>Hostname <input name="hostname" maxlength="63" spellcheck="false" autocapitalize="off">
+            <small class="hint">The Pi's name on your network. Letters, numbers and dashes, like <code>spider</code>.</small>
+            <small class="error" data-error-for="hostname"></small></label>
+          <label>Timezone <input name="timezone" list="tz-list" spellcheck="false">
+            <small class="hint">Start typing a city, like Europe/London.</small>
+            <small class="error" data-error-for="timezone"></small></label>
+          <datalist id="tz-list"></datalist>
+          <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="set" id="network">
+      <h2>Network</h2>
+      <p class="muted">How the Pi connects to your router. A fixed address means the dashboard is always in the same place.</p>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label>Network port <input name="lan_interface" spellcheck="false">
+            <small class="hint"><code>eth0</code> for the cable, <code>wlan0</code> for Wi-Fi.</small>
+            <small class="error" data-error-for="lan_interface"></small></label>
+          <div class="radio-row" role="radiogroup" aria-label="Address">
+            <label class="radio"><input type="radio" name="lan_mode" value="dhcp"> Let the router choose (DHCP)</label>
+            <label class="radio"><input type="radio" name="lan_mode" value="static"> Use a fixed address</label>
+          </div>
+          <div class="static-only">
+            <label>Address <input name="lan_address" placeholder="192.168.1.50/24" spellcheck="false">
+              <small class="error" data-error-for="lan_address"></small></label>
+            <label>Router (gateway) <input name="lan_gateway" placeholder="192.168.1.1" spellcheck="false">
+              <small class="error" data-error-for="lan_gateway"></small></label>
+            <label>DNS servers <input name="lan_dns" placeholder="192.168.1.2, 1.1.1.1" spellcheck="false">
+              <small class="hint">Put your Pi-hole first to filter the Pi's own lookups.</small>
+              <small class="error" data-error-for="lan_dns"></small></label>
+          </div>
+          <p class="warn-text">If the address changes, the dashboard moves with it. You'll need to open SPIder at the new address.</p>
+          <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="set" id="scanning">
+      <h2>Scanning</h2>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label>Network to scan <input name="scan_subnet" spellcheck="false" id="scan-subnet">
+            <small class="hint" id="subnet-hint">Leave blank to detect it.</small>
+            <small class="error" data-error-for="scan_subnet"></small></label>
+          <label>Scan every <span class="with-unit"><input name="scan_interval" type="number" min="60" max="86400" step="60"> seconds</span>
+            <small class="error" data-error-for="scan_interval"></small></label>
+          <label>Count a device as offline after <span class="with-unit"><input name="offline_after_minutes" type="number" min="1" max="1440"> minutes</span>
+            <small class="error" data-error-for="offline_after_minutes"></small></label>
+          <label>Method
+            <select name="scan_method">
+              <option value="auto">Automatic (best available)</option>
+              <option value="arp">ARP only (fastest, needs admin rights)</option>
+              <option value="ping">Ping sweep (works anywhere)</option>
+            </select></label>
+          <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="set" id="pihole">
+      <h2>Pi-hole</h2>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label>Pi-hole address <input name="pihole_url" placeholder="http://192.168.1.2" spellcheck="false">
+            <small class="error" data-error-for="pihole_url"></small></label>
+          <label>Password <input name="pihole_password" type="password" autocomplete="off" id="pihole-password">
+            <small class="hint" id="pihole-password-hint">Pi-hole v6: an app password from Settings, Web interface / API. Pi-hole v5: the API token.</small></label>
+          <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="set" id="alerts">
+      <h2>Alerts</h2>
+      <p class="muted">Get a notification on your phone through <a href="https://ntfy.sh" rel="noopener" target="_blank">ntfy</a>. Install the app and subscribe to the same topic.</p>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label>ntfy server <input name="ntfy_url" spellcheck="false">
+            <small class="error" data-error-for="ntfy_url"></small></label>
+          <label>Topic <input name="ntfy_topic" spellcheck="false" placeholder="pick-something-hard-to-guess">
+            <small class="hint">Anyone who knows the topic can read your alerts, so make it hard to guess.</small>
+            <small class="error" data-error-for="ntfy_topic"></small></label>
+          <label class="check"><input type="checkbox" name="alert_new_device"> Alert me when a new device joins</label>
+          <div class="form-foot">
+            <button type="submit">Save</button>
+            <button type="button" class="secondary" id="test-alert">Send a test alert</button>
+            <span class="result" role="status"></span>
+          </div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="set" id="access">
+      <h2>Access</h2>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label class="check"><input type="checkbox" name="guest_view"> Let anyone on the network view the dashboard without signing in</label>
+          <small class="hint">Viewing only. Changes always need an admin.</small>
+          <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+        </fieldset>
+      </form>
+    </section>
+
+    {% if admin %}
+    <section class="set" id="users">
+      <h2>Users</h2>
+      <table class="users-table"><tbody id="users-body"></tbody></table>
+      <form class="form" id="add-user-form" autocomplete="off">
+        <h3>Add someone</h3>
+        <div class="form-row">
+          <label>Username <input name="username" required minlength="3" maxlength="32" autocomplete="off"></label>
+          <label>Password <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+          <label>Role
+            <select name="role"><option value="viewer">Viewer (look only)</option><option value="admin">Admin (can change things)</option></select></label>
+        </div>
+        <div class="form-foot"><button type="submit">Add user</button><span class="result" role="status"></span></div>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/settings.js"></script>{% endblock %}

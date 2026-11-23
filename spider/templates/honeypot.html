@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="honeypot-page">
+  <p class="lead-text">The honeypot isn't set up yet.</p>
+  <p class="muted">
+    It will put a fake login on your network that looks like a real device. Nothing legitimate should
+    ever touch it, so anything that does is worth knowing about: a compromised gadget, or someone
+    poking around your Wi-Fi.
+  </p>
+  <ol class="plan">
+    <li><b>Fake SSH and router login on your LAN.</b> Any connection triggers an alert straight away.</li>
+    <li><b>Record what was tried.</b> The usernames, passwords and commands an intruder attempts.</li>
+    <li><b>Open it to the internet, safely.</b> Once your network can keep the Pi isolated, see who knocks from outside, on a map.</li>
+  </ol>
+</section>
+{% endblock %}

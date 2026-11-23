@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="silk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ "Set up" if mode == "setup" else "Sign in" }} | SPIder</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("spider-theme") || "silk"; } catch (e) {}</script>
+  {% include "_fonts.html" %}
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="auth-body">
+<main class="auth">
+  <div class="auth-mark">
+    {% include "_logo.html" %}
+    <span class="wordmark">S<span class="pi">PI</span>der</span>
+  </div>
+
+  {% if mode == "setup" %}
+  <h1>Create the admin account</h1>
+  <p class="muted">This is the first time SPIder has run. The admin can change settings, name devices and add other people.</p>
+  {% else %}
+  <h1>Sign in</h1>
+  {% endif %}
+
+  <form id="auth-form" class="form" data-mode="{{ mode }}" data-next="{{ next }}">
+    <label>Username <input name="username" required autocomplete="username" autocapitalize="off" spellcheck="false" autofocus></label>
+    <label>Password <input name="password" type="password" required
+      autocomplete="{{ 'new-password' if mode == 'setup' else 'current-password' }}"
+      {% if mode == "setup" %}minlength="8"{% endif %}>
+      {% if mode == "setup" %}<small class="hint">At least 8 characters. There's no reset email, so keep it somewhere safe.</small>{% endif %}
+    </label>
+    <p class="error" id="auth-error" role="alert"></p>
+    <button type="submit">{{ "Create account" if mode == "setup" else "Sign in" }}</button>
+  </form>
+  {% if mode != "setup" %}<a class="muted small back" href="/">Back to the dashboard</a>{% endif %}
+</main>
+<script>
+document.getElementById("auth-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, err = document.getElementById("auth-error");
+  const btn = f.querySelector("button"); btn.disabled = true; err.textContent = "";
+  const r = await fetch(f.dataset.mode === "setup" ? "/api/setup" : "/api/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: f.username.value, password: f.password.value }),
+  });
+  if (r.ok) { location.href = f.dataset.next || "/"; return; }
+  err.textContent = (await r.json().catch(() => ({}))).detail || "Something went wrong. Try again.";
+  btn.disabled = false; f.password.select();
+});
+</script>
+</body>
+</html>
