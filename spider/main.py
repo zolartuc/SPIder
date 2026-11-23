@@ -76,7 +76,7 @@ async def update_loop() -> None:
 
 async def blocks_loop() -> None:
     while True:
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
         try:
             await asyncio.to_thread(blocking.expire)
         except Exception:
@@ -374,14 +374,16 @@ async def blocks_status(_=Depends(viewer)):
 
 
 class BlockBody(BaseModel):
-    minutes: int | None = None  # None = until someone unblocks
+    minutes: int | None = None  # None (and no seconds) = until someone unblocks
+    seconds: int | None = None  # for short test pauses
 
 
 @app.put("/api/devices/{mac}/block")
 async def block_device(mac: str, body: BlockBody, admin=Depends(auth.require_admin)):
-    if body.minutes is not None and not 5 <= body.minutes <= 7 * 24 * 60:
-        raise HTTPException(422, "Pauses run from 5 minutes to 7 days.")
-    return await asyncio.to_thread(blocking.block, mac, body.minutes, admin["username"])
+    total = body.seconds if body.seconds is not None else (body.minutes * 60 if body.minutes is not None else None)
+    if total is not None and not 30 <= total <= 7 * 24 * 3600:
+        raise HTTPException(422, "Pauses run from 30 seconds to 7 days.")
+    return await asyncio.to_thread(blocking.block, mac, total, admin["username"])
 
 
 @app.delete("/api/devices/{mac}/block")

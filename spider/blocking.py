@@ -19,7 +19,10 @@ from .watchtower.scanner import local_ip
 log = logging.getLogger("spider.blocking")
 
 
-def _fmt_duration(minutes: int) -> str:
+def _fmt_duration(seconds: int) -> str:
+    if seconds < 60:
+        return f"{seconds} seconds"
+    minutes = seconds // 60
     if minutes % 60 == 0:
         h = minutes // 60
         return f"{h} hour{'s' if h != 1 else ''}"
@@ -57,7 +60,7 @@ def protected_reason(ip: str | None) -> str | None:
     return None
 
 
-def block(mac: str, minutes: int | None, user: str) -> dict:
+def block(mac: str, seconds: int | None, user: str) -> dict:
     with connect() as conn:
         dev = conn.execute("SELECT * FROM devices WHERE mac = ?", (mac,)).fetchone()
     if not dev:
@@ -68,8 +71,8 @@ def block(mac: str, minutes: int | None, user: str) -> dict:
     res = pihole.set_paused(mac.upper(), True)
     _raise_for(res)
 
-    until = None if minutes is None else (datetime.now(timezone.utc) + timedelta(minutes=minutes)).isoformat(timespec="seconds")
-    detail = f"paused for {_fmt_duration(minutes)}" if minutes else "blocked until someone unblocks it"
+    until = None if seconds is None else (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(timespec="seconds")
+    detail = f"paused for {_fmt_duration(seconds)}" if seconds else "blocked until someone unblocks it"
     with connect() as conn:
         conn.execute(
             "INSERT INTO blocks (mac, until, created, by_user) VALUES (?, ?, ?, ?) "
@@ -89,7 +92,7 @@ def unblock(mac: str, user: str | None = None, expired: bool = False) -> None:
 
 
 def expire() -> None:
-    """Called every 30 seconds: lift pauses whose time is up."""
+    """Called every few seconds: lift pauses whose time is up."""
     stamp = now()
     with connect() as conn:
         due = [r["mac"] for r in conn.execute("SELECT mac FROM blocks WHERE until IS NOT NULL AND until <= ?", (stamp,))]

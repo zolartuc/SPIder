@@ -14,7 +14,9 @@
   }
 
   const left = (until) => {
-    const mins = Math.max(0, Math.round((new Date(until) - Date.now()) / 60000));
+    const secs = Math.max(0, Math.round((new Date(until) - Date.now()) / 1000));
+    if (secs < 120) return `${secs} s left`;
+    const mins = Math.round(secs / 60);
     if (mins >= 120) return `${Math.round(mins / 60)} h left`;
     return mins >= 60 ? `1 h ${mins - 60} min left` : `${mins} min left`;
   };
@@ -29,6 +31,7 @@
       <select class="access" data-mac="${esc(d.mac)}" aria-label="Internet for ${esc(d.name || d.ip)}" ${disabled ? `disabled title="${esc(access.reason || "")}"` : ""}>
         <option value="" selected>${b ? state : "Allowed"}</option>
         ${b ? `<option value="allow">Allow again now</option>` : ""}
+        <option value="s30">Pause for 30 seconds (test)</option>
         <option value="30">Pause for 30 minutes</option>
         <option value="60">Pause for 1 hour</option>
         <option value="120">Pause for 2 hours</option>
@@ -106,9 +109,9 @@
         await api(`/api/devices/${encodeURIComponent(mac)}/block`, { method: "DELETE" });
         toast(`${who} can use the internet again`);
       } else {
-        const minutes = v === "block" ? null : v === "morning" ? minutesUntilMorning() : Number(v);
-        await api(`/api/devices/${encodeURIComponent(mac)}/block`, { method: "PUT", body: JSON.stringify({ minutes }) });
-        toast(minutes ? `${who} is paused` : `${who} is blocked`);
+        const body = v === "block" ? { minutes: null } : v === "s30" ? { seconds: 30 } : { minutes: v === "morning" ? minutesUntilMorning() : Number(v) };
+        await api(`/api/devices/${encodeURIComponent(mac)}/block`, { method: "PUT", body: JSON.stringify(body) });
+        toast(v === "block" ? `${who} is blocked` : `${who} is paused`);
       }
     } catch (err) { toast(err.message); }
     load();
