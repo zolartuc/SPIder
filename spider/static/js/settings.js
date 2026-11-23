@@ -48,6 +48,7 @@
     $("subnet-hint").textContent = `Leave blank to detect it. Right now that's ${data.detected_subnet}.`;
     $("scan-subnet").placeholder = data.detected_subnet;
     $("tz-list").innerHTML = data.timezones.map((z) => `<option value="${esc(z)}">`).join("");
+    testPihole();
   }
 
   // ---------- save a section
@@ -90,6 +91,7 @@
       const r = await api("/api/settings", { method: "PUT", body: JSON.stringify(collect(form)) });
       values = r.values; fill();
       result.textContent = r.changed.length ? "Saved" : "Nothing changed";
+      if (form.querySelector('[name="pihole_url"]')) testPihole();
       showApply(form, r.apply);
     } catch (err) {
       const slot = err.field && form.querySelector(`[data-error-for="${err.field}"]`);
@@ -97,6 +99,25 @@
       else result.textContent = err.message;
     } finally { btn.disabled = false; }
   }));
+
+  // ---------- Pi-hole connection status
+  async function testPihole() {
+    const box = $("pihole-status");
+    if (!values.pihole_url) { box.hidden = true; return; }
+    box.hidden = false; box.className = "ph-status"; box.textContent = "Testing the connection…";
+    try {
+      const p = await api("/api/pihole");
+      if (p.status === "ok") {
+        box.classList.add("ok");
+        box.textContent = `Connected to Pi-hole v${p.version}. ${p.percent_blocked}% of today's lookups blocked.`;
+      } else {
+        box.classList.add("bad");
+        const lead = { auth_failed: "Pi-hole turned down the password.", offline: "Can't connect.", not_configured: "No Pi-hole address saved yet." }[p.status] || "Not connected.";
+        box.innerHTML = `<b>${esc(lead)}</b> ${esc(p.error || "")}`;
+      }
+    } catch (e) { box.classList.add("bad"); box.textContent = e.message; }
+  }
+  $("pihole-test")?.addEventListener("click", testPihole);
 
   $("test-alert")?.addEventListener("click", async () => {
     const result = $("test-alert").parentElement.querySelector(".result");

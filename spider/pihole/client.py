@@ -21,7 +21,7 @@ TOP_N = 8
 
 
 class AuthFailed(Exception):
-    pass
+    """Pi-hole refused the password. The message, if any, is Pi-hole's own reason."""
 
 
 def reset() -> None:
@@ -44,9 +44,13 @@ def _v6_get(client: httpx.Client, base: str, password: str, path: str, params: d
         return None
     if r.status_code == 401:
         auth = client.post(f"{base}/api/auth", json={"password": password})
-        session = auth.json().get("session", {}) if auth.status_code == 200 else {}
+        body = auth.json() if "json" in auth.headers.get("content-type", "") else {}
+        session = body.get("session", {}) if auth.status_code == 200 else {}
         if not session.get("valid"):
-            raise AuthFailed
+            if auth.status_code == 429:
+                raise AuthFailed("Pi-hole has too many signed-in sessions right now. Wait a few minutes, or raise its session limit.")
+            err = body.get("error") if isinstance(body.get("error"), dict) else {}
+            raise AuthFailed(session.get("message") or err.get("message") or "")
         _sid = session.get("sid")
         r = get()
     r.raise_for_status()
@@ -69,11 +73,28 @@ def _call(fn, timeout: float = 5) -> dict:
     try:
         with httpx.Client(timeout=timeout, verify=False) as client:
             return fn(client, s.pihole_url.rstrip("/"), s.pihole_password)
-    except AuthFailed:
-        return {"status": "auth_failed"}
-    except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-        log.debug("Pi-hole unreachable: %s", exc)
-        return {"status": "offline", "error": str(exc)}
+    except AuthFailed as exc:
+        return {"status": "auth_failed", "error": str(exc) or "Pi-hole said the password is wrong."}
+    except Exception as exc:  # anything else: explain it in plain words
+        log.debug("Pi-hole problem: %r", exc)
+        return {"status": "offline", "error": explain(exc, s.pihole_url)}
+
+
+def explain(exc: Exception, url: str) -> str:
+    """Turn a connection error into something a person can act on."""
+    text = str(exc)
+    other = url.replace("https://", "http://", 1) if url.startswith("https://") else url.replace("http://", "https://", 1)
+    if isinstance(exc, httpx.ConnectTimeout) or isinstance(exc, httpx.TimeoutException):
+        return f"Nothing answered at {url} in time. Check the address and port, and that the Pi-hole is switched on."
+    if "SSL" in text or "TLS" in text or "certificate" in text.lower():
+        return f"That port didn't speak HTTPS. Try {other} instead."
+    if isinstance(exc, httpx.ConnectError):
+        return f"Couldn't connect to {url}. Check the address and port (the port Pi-hole's web page uses), and that the Pi-hole is on."
+    if isinstance(exc, httpx.HTTPStatusError):
+        return f"Pi-hole answered with an error (HTTP {exc.response.status_code}). Check the address points at Pi-hole's web interface."
+    if isinstance(exc, ValueError):
+        return f"Something answered at {url}, but it isn't Pi-hole's API. Check the port, and use the address without /admin."
+    return f"Couldn't talk to the Pi-hole: {text or type(exc).__name__}"
 
 
 # --------------------------------------------------------------------------- summary
@@ -242,9 +263,13 @@ def _v6_send(client: httpx.Client, base: str, password: str, method: str, path: 
     r = go()
     if r.status_code == 401:
         auth = client.post(f"{base}/api/auth", json={"password": password})
-        session = auth.json().get("session", {}) if auth.status_code == 200 else {}
+        body = auth.json() if "json" in auth.headers.get("content-type", "") else {}
+        session = body.get("session", {}) if auth.status_code == 200 else {}
         if not session.get("valid"):
-            raise AuthFailed
+            if auth.status_code == 429:
+                raise AuthFailed("Pi-hole has too many signed-in sessions right now. Wait a few minutes, or raise its session limit.")
+            err = body.get("error") if isinstance(body.get("error"), dict) else {}
+            raise AuthFailed(session.get("message") or err.get("message") or "")
         _sid = session.get("sid")
         r = go()
     if r.status_code == 404:

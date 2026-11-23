@@ -23,6 +23,14 @@ SECRET_KEYS = {"pihole_password"}
 SYSTEM_KEYS = {"hostname", "timezone", "lan_interface", "lan_mode", "lan_address", "lan_gateway", "lan_dns"}
 
 
+def normalise_url(v: str) -> str:
+    """'Https://10.0.0.2:7300/admin/' -> 'https://10.0.0.2:7300' (scheme lower case, no trailing /admin or slash)."""
+    v = (v or "").strip()
+    v = re.sub(r"^(https?)://", lambda m: m.group(1).lower() + "://", v, flags=re.IGNORECASE)
+    v = re.sub(r"/admin/?$", "", v.rstrip("/"), flags=re.IGNORECASE)
+    return v.rstrip("/")
+
+
 class AppSettings(BaseModel):
     # Device
     device_name: str = Field("SPIder", min_length=1, max_length=40)
@@ -132,9 +140,10 @@ class AppSettings(BaseModel):
     @field_validator("pihole_url", "ntfy_url")
     @classmethod
     def valid_url(cls, v):
+        v = normalise_url(v)
         if v and not re.match(r"^https?://[^\s/$.?#].[^\s]*$", v):
             raise ValueError("Enter a full address starting with http:// or https://.")
-        return v.rstrip("/")
+        return v
 
     @field_validator("ntfy_topic")
     @classmethod
@@ -157,9 +166,9 @@ def _env_defaults() -> dict:
         "scan_interval": env.scan_interval,
         "scan_method": env.scan_method,
         "offline_after_minutes": env.offline_after_minutes,
-        "ntfy_url": env.ntfy_url,
+        "ntfy_url": normalise_url(env.ntfy_url),
         "ntfy_topic": env.ntfy_topic,
-        "pihole_url": env.pihole_url,
+        "pihole_url": normalise_url(env.pihole_url),
         "pihole_password": env.pihole_password,
     }
 

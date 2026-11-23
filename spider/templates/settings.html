@@ -129,8 +129,13 @@
           <label>Pi-hole address <input name="pihole_url" placeholder="http://192.168.1.2" spellcheck="false">
             <small class="error" data-error-for="pihole_url"></small></label>
           <label>Password <input name="pihole_password" type="password" autocomplete="off" id="pihole-password">
-            <small class="hint" id="pihole-password-hint">Pi-hole v6: an app password from Settings, Web interface / API. Pi-hole v5: the API token.</small></label>
-          <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+            <small class="hint" id="pihole-password-hint">Pi-hole v6: its web password, or better, an app password from Settings, Web interface / API. Pi-hole v5: the API token. Not the Pi's own login.</small></label>
+          <p class="ph-status" id="pihole-status" role="status" hidden></p>
+          <div class="form-foot">
+            <button type="submit">Save</button>
+            <button type="button" class="secondary" id="pihole-test">Test connection</button>
+            <span class="result" role="status"></span>
+          </div>
         </fieldset>
       </form>
     </section>
