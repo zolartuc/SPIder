@@ -374,6 +374,16 @@ async def traffic_device(key: str, _=Depends(viewer)):
     return data
 
 
+@app.get("/api/flags")
+async def traffic_flags(_=Depends(viewer)):
+    return await asyncio.to_thread(traffic_views.flags)
+
+
+@app.post("/api/flags/{key}/ack")
+async def traffic_flag_ack(key: str, _=Depends(auth.require_user)):
+    return {"cleared": await asyncio.to_thread(traffic_views.acknowledge, key)}
+
+
 def run() -> None:
     import uvicorn
 

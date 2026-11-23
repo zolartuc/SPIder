@@ -1,6 +1,6 @@
 // Traffic page: what each device talks to, and the first contacts worth a look.
 (() => {
-  const { $, esc, ago, fmt, api, isAdmin, tidyVendor } = SP;
+  const { $, esc, ago, fmt, api, isAdmin, tidyVendor, signedIn, toast } = SP;
   const NS = "http://www.w3.org/2000/svg";
   let overview = null;
   let selected = decodeURIComponent((location.hash.match(/device=([^&]+)/) || [])[1] || "");
@@ -128,9 +128,10 @@
   // ---------------------------------------------------------------- detail: one device
   async function renderDevice(key) {
     $("tr-detail").innerHTML = `<p class="muted">Loading…</p>`;
-    let d;
-    try { d = await api(`/api/traffic/device/${encodeURIComponent(key)}`); }
+    let d, flags = [];
+    try { [d, flags] = await Promise.all([api(`/api/traffic/device/${encodeURIComponent(key)}`), api("/api/flags").catch(() => [])]); }
     catch (e) { $("tr-detail").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    const flag = flags.find((f) => f.key === key);
     if (key !== selected) return; // user moved on
 
     const dev = d.device, busiest = d.spark.indexOf(Math.max(...d.spark));
@@ -143,6 +144,11 @@
           ${dev.mac ? ` <a href="/devices#${encodeURIComponent(dev.mac)}">Open in Devices</a>` : ""}</p>
         </div>
       </header>
+      ${flag ? `<div class="notice flag-notice">
+        <p>Something unusual: in the last day this device contacted ${flag.sites.map((x) => `<b class="mono">${esc(x)}</b>`).join(", ")} for the first time.
+        Its thread is shaking on the web until someone checks it.</p>
+        ${signedIn ? `<button type="button" id="tr-ack" data-key="${esc(key)}">Mark as checked</button>` : `<a href="/login?next=/traffic">Sign in to mark it as checked</a>`}
+      </div>` : ""}
       ${dev.learning ? `<p class="notice">Still learning what's normal for this device. First contacts are flagged from ${learningUntil ? when(learningUntil.toISOString()) : "tomorrow"}.</p>` : ""}
       <dl class="stats wide">
         <div><dt>Lookups, last 24 hours</dt><dd>${fmt(d.count)}</dd></div>
@@ -193,7 +199,14 @@
     if (matchMedia("(max-width: 900px)").matches) $("tr-detail").scrollIntoView({ block: "start" });
   }
 
-  $("tr-main").addEventListener("click", (e) => {
+  $("tr-main").addEventListener("click", async (e) => {
+    const ack = e.target.closest("#tr-ack");
+    if (ack) {
+      ack.disabled = true;
+      try { await api(`/api/flags/${encodeURIComponent(ack.dataset.key)}/ack`, { method: "POST" }); toast("Marked as checked. Its thread is calm again."); renderDetail(); }
+      catch (err) { toast(err.message); ack.disabled = false; }
+      return;
+    }
     const item = e.target.closest(".tr-item, .contact-dev");
     if (!item) return;
     e.preventDefault();

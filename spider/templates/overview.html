@@ -7,6 +7,7 @@
       <span><i class="key live"></i>Online</span>
       <span><i class="key gone"></i>Offline</span>
       <span><i class="key stranger"></i>Not marked as yours</span>
+      <span><i class="key flagged"></i>Something unusual (click the thread)</span>
     </figcaption>
   </figure>
 
@@ -14,6 +15,7 @@
     <div class="summary">
       <p class="lead"><strong id="s-online">–</strong> <span id="s-online-text">devices are on your web.</span></p>
       <p id="s-unknown" class="muted"></p>
+      <p id="s-flags" class="flag-line" role="status" hidden></p>
     </div>
 
     <section class="panel">
@@ -31,5 +33,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="/static/js/web.js"></script>
+<script src="/static/js/crawler.js"></script>
 <script src="/static/js/overview.js"></script>
 {% endblock %}

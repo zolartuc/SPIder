@@ -90,6 +90,9 @@ def init_db() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     with connect() as conn:
         conn.executescript(SCHEMA)
+        # Added later: whether someone has looked at an event (clears "unusual" flags on the web).
+        if "ack" not in [r[1] for r in conn.execute("PRAGMA table_info(events)")]:
+            conn.execute("ALTER TABLE events ADD COLUMN ack INTEGER NOT NULL DEFAULT 0")
 
 
 @contextmanager

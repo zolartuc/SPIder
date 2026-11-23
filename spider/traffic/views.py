@@ -143,3 +143,54 @@ def device(key: str) -> dict | None:
         "sites": sites[:60],
         "first_contacts": contacts[:30],
     }
+
+
+# --------------------------------------------------------------------------- flags
+
+FLAG_HOURS = 24  # a first contact nobody has looked at yet stays "unusual" this long
+
+
+def _parse_contact(detail: str) -> tuple[str, str, str]:
+    """new_contact events store 'site ip category words'."""
+    parts = (detail or "").split(" ")
+    return (parts[0] if parts else ""), (parts[1] if len(parts) > 1 else ""), " ".join(parts[2:])
+
+
+def flags() -> list[dict]:
+    """Devices doing something unusual: unchecked first contacts from the last day, newest first."""
+    now = time.time()
+    with connect() as conn:
+        info = _device_info(conn)
+        mac_by_ip = {d["ip"]: mac for mac, d in info.items() if d.get("ip")}
+        rows = conn.execute(
+            "SELECT mac, detail, ts FROM events WHERE type = 'new_contact' AND ack = 0 AND ts >= ? ORDER BY ts DESC",
+            (iso(now - FLAG_HOURS * 3600),),
+        ).fetchall()
+    out: dict[str, dict] = {}
+    for r in rows:
+        site, ip, cat = _parse_contact(r["detail"])
+        mac = r["mac"] or mac_by_ip.get(ip)
+        key = mac or f"ip:{ip}"
+        f = out.setdefault(key, {**_describe(key, info), "count": 0, "sites": [], "latest": {"site": site, "category": cat, "ts": r["ts"]}})
+        f["count"] += 1
+        if site not in f["sites"]:
+            f["sites"].append(site)
+    return list(out.values())
+
+
+def acknowledge(key: str) -> int:
+    """Mark a device's unchecked first contacts as looked at. Returns how many were cleared."""
+    with connect() as conn:
+        if key.startswith("ip:"):
+            ip = key[3:]
+            row = conn.execute("SELECT mac FROM devices WHERE ip = ?", (ip,)).fetchone()
+            mac = row["mac"] if row else None
+        else:
+            mac = key
+            row = conn.execute("SELECT ip FROM devices WHERE mac = ?", (mac,)).fetchone()
+            ip = row["ip"] if row else None
+        cur = conn.execute(
+            "UPDATE events SET ack = 1 WHERE type = 'new_contact' AND ack = 0 AND (mac = ? OR detail LIKE ?)",
+            (mac, f"% {ip} %" if ip else "\x00"),
+        )
+        return cur.rowcount

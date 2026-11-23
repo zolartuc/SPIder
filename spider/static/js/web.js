@@ -5,6 +5,9 @@ const SpiderWeb = (() => {
   const NS = "http://www.w3.org/2000/svg";
   let drawn = false;
   let index = new Map();
+  let geom = null;               // shared with crawler.js: where the hub, spokes, rings and devices are
+  const listeners = [];
+  const RINGS = [0.16, 0.3, 0.44, 0.58, 0.72, 0.86, 1];
 
   function el(tag, attrs, parent) {
     const n = document.createElementNS(NS, tag);
@@ -17,7 +20,13 @@ const SpiderWeb = (() => {
     const svg = $("web");
     if (!svg) return;
     index = new Map(devices.map((d) => [d.mac, d]));
-    svg.replaceChildren();
+    // The web itself is redrawn every refresh; the effects layer (spider, vibrating threads) persists on top.
+    let base = svg.querySelector("#web-base");
+    if (!base) {
+      base = el("g", { id: "web-base" }, svg);
+      el("g", { id: "web-fx" }, svg);
+    }
+    base.replaceChildren();
     const cx = 320, cy = 270, R = 215;
 
     const hub = devices.find((d) => /\.1$/.test(d.ip)) || null;
@@ -26,13 +35,13 @@ const SpiderWeb = (() => {
     const angle = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
     const pt = (a, r) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
 
-    const threads = el("g", { class: "threads" + (drawn ? "" : " draw") }, svg);
+    const threads = el("g", { class: "threads" + (drawn ? "" : " draw") }, base);
     for (let i = 0; i < n; i++) {
       const [x, y] = pt(angle(i), R * 1.08);
       el("line", { x1: cx, y1: cy, x2: x, y2: y, class: "spoke", pathLength: 1 }, threads);
     }
     // Rings sag a little between spokes, like real silk.
-    [0.16, 0.3, 0.44, 0.58, 0.72, 0.86, 1].forEach((f, ri) => {
+    RINGS.forEach((f, ri) => {
       const r = R * f;
       let d = "";
       for (let i = 0; i <= n; i++) {
@@ -44,7 +53,8 @@ const SpiderWeb = (() => {
       el("path", { d, class: "ring", pathLength: 1, style: `--i:${ri}` }, threads);
     });
 
-    const nodes = el("g", { class: "nodes" }, svg);
+    const nodes = el("g", { class: "nodes" }, base);
+    const placed = new Map();
     const add = (d, x, y, a, isHub) => {
       const cls = ["node", d.online ? "live" : "gone", d.known ? "mine" : "stranger", isHub ? "hub" : ""].join(" ");
       const g = el("a", { class: cls, href: `/devices#${encodeURIComponent(d.mac)}`, "data-mac": d.mac,
@@ -66,11 +76,15 @@ const SpiderWeb = (() => {
     if (hub) add(hub, cx, cy, 0, true); else el("circle", { cx, cy, r: 4, class: "hub-empty" }, nodes);
     others.forEach((d, i) => {
       const a = angle(i);
-      const [x, y] = pt(a, R * (d.online ? (i % 2 ? 0.58 : 0.79) : 1.0));
+      const f = d.online ? (i % 2 ? 0.58 : 0.79) : 1.0;
+      const [x, y] = pt(a, R * f);
       add(d, x, y, a, false);
+      placed.set(d.mac, { mac: d.mac, i, f, x, y, a, device: d });
     });
     untangleLabels(svg, cy);
     drawn = true;
+    geom = { cx, cy, R, n, rings: RINGS, angle, nodes: placed, hub: hub ? hub.mac : null };
+    listeners.forEach((fn) => fn(geom));
   }
 
   // Nudge labels that overlap a neighbour up or down (away from the hub) until they're clear.
@@ -92,6 +106,7 @@ const SpiderWeb = (() => {
   // Tooltip
   const svg = $("web");
   svg?.addEventListener("pointerover", (e) => {
+    if (e.target.closest(".flag")) return; // crawler.js owns the tooltip for flagged threads
     const g = e.target.closest(".node"), tip = $("tip");
     if (!g) { tip.hidden = true; return; }
     const d = index.get(g.dataset.mac); if (!d) return;
@@ -105,5 +120,5 @@ const SpiderWeb = (() => {
   });
   svg?.addEventListener("pointerleave", () => { $("tip").hidden = true; });
 
-  return { render };
+  return { render, geom: () => geom, onRender: (fn) => listeners.push(fn), device: (mac) => index.get(mac) };
 })();

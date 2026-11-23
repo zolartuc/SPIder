@@ -359,6 +359,9 @@ main {
 .key.live { background: var(--live); }
 .key.gone { background: var(--gone); }
 .key.stranger { background: var(--stranger); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--stranger); }
+.key.flagged { width: 18px; height: 6px; border-radius: 0; background: none;
+  background-image: radial-gradient(circle at 50% 120%, transparent 3px, var(--stranger) 3.2px, var(--stranger) 4.4px, transparent 4.6px);
+  background-size: 6px 6px; }
 
 .side { display: grid; gap: 24px; padding-top: 8px; }
 .lead { font-size: 22px; line-height: 1.3; }
@@ -512,6 +515,73 @@ button.danger:hover { color: var(--danger); }
 @media (max-width: 900px) {
   .ph-top { grid-template-columns: minmax(0, 1fr); gap: 28px; }
 }
+
+/* =====================================================================
+   Scrollbars, themed (Chromium/Edge/Safari via ::-webkit-scrollbar, Firefox via scrollbar-color)
+   ===================================================================== */
+:root, [data-theme="silk"] { --sb-track: transparent; --sb-thumb: #3b4762; --sb-thumb-hover: #56647f; --sb-radius: 999px; }
+[data-theme="bridge"]      { --sb-track: #000000; --sb-thumb: #9999ff; --sb-thumb-hover: #ff9900; --sb-radius: 999px; }
+[data-theme="cyanotype"]   { --sb-track: rgb(255 255 255 / .06); --sb-thumb: rgb(255 255 255 / .42); --sb-thumb-hover: rgb(255 255 255 / .7); --sb-radius: 2px; }
+[data-theme="amber"]       { --sb-track: #24180a; --sb-thumb: #7a5220; --sb-thumb-hover: #b97c2b; --sb-radius: 0; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--sb-track); }
+::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb); border-radius: var(--sb-radius);
+  border: 3px solid transparent; background-clip: padding-box; min-height: 32px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--sb-thumb-hover); border-width: 2px; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+[data-theme="bridge"] ::-webkit-scrollbar { width: 12px; }
+[data-theme="bridge"] ::-webkit-scrollbar-thumb { border-width: 2px; }
+[data-theme="amber"] ::-webkit-scrollbar-thumb { border-width: 2px; box-shadow: 0 0 4px rgb(255 179 71 / .35); }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) var(--sb-track); }
+}
+
+/* =====================================================================
+   The crawler (spider on the web) and flagged threads
+   ===================================================================== */
+:root, [data-theme="silk"] {
+  --cr-body: #e5517c; --cr-shine: #ffc9d7; --cr-head: #6e1834; --cr-leaf: #9be3a2; --cr-legs: #dfe5ef; --cr-eye: #fff1f5;
+}
+[data-theme="bridge"] {
+  --cr-body: #ff9900; --cr-shine: #ffcc66; --cr-head: #cc6666; --cr-leaf: #cc99cc; --cr-legs: #ffcc99; --cr-eye: #000000;
+}
+[data-theme="cyanotype"] {
+  --cr-body: #dbe9f6; --cr-shine: #ffffff; --cr-head: #ffffff; --cr-leaf: #a8c6e2; --cr-legs: #ffffff; --cr-eye: #1b4f82;
+}
+[data-theme="amber"] {
+  --cr-body: #ffb347; --cr-shine: #fff2d6; --cr-head: #8a5a1c; --cr-leaf: #b97c2b; --cr-legs: #ffd08a; --cr-eye: #1c1206;
+}
+
+#web-fx .crawler { pointer-events: none; }
+.cr-legs path { fill: none; stroke: var(--cr-legs); stroke-width: 1.25; stroke-linecap: round; }
+.cr-body { fill: var(--cr-body); stroke: var(--bg); stroke-width: 0.8; }
+.cr-shine { fill: var(--cr-shine); opacity: .7; }
+.cr-head { fill: var(--cr-head); stroke: var(--bg); stroke-width: 0.6; }
+.cr-leaf { fill: var(--cr-leaf); }
+.cr-eye { fill: var(--cr-eye); }
+[data-theme="amber"] .crawler { filter: drop-shadow(0 0 2px rgb(255 179 71 / .6)); }
+
+.flag { cursor: pointer; outline: none; }
+.flag-hit { stroke: transparent; stroke-width: 18; pointer-events: stroke; }
+.flag-wave { fill: none; stroke: var(--stranger); stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
+.flag-pulse { fill: var(--stranger); pointer-events: none; filter: drop-shadow(0 0 3px var(--stranger)); }
+.flag-ring { fill: none; stroke: var(--stranger); stroke-width: 1.4; pointer-events: none; transform-box: fill-box; transform-origin: center; animation: flag-ring 2.6s ease-out infinite; }
+.flag:hover .flag-wave, .flag:focus-visible .flag-wave { stroke-width: 2.8; }
+@keyframes flag-ring { 0% { transform: scale(.7); opacity: .9; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .flag-ring { animation: none; opacity: .8; } }
+
+.flag-line {
+  margin-top: 14px; padding: 10px 14px; border-radius: var(--radius); max-width: 48ch;
+  background: color-mix(in srgb, var(--stranger) 12%, transparent); box-shadow: inset 3px 0 var(--stranger);
+}
+.flag-line[hidden] { display: none; }
+.flag-line a { white-space: nowrap; }
+.flag-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.flag-notice[hidden] { display: none; }
 
 /* =====================================================================
    Traffic

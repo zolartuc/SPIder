@@ -69,10 +69,10 @@ def main() -> None:
     print(f"Screenshots written to {OUT}")
 
 
-def signed_in(browser, theme: str, **ctx):
+def signed_in(browser, theme: str, motion: bool = False, **ctx):
     ctx.setdefault("viewport", {"width": 1440, "height": 900})
     ctx.setdefault("device_scale_factor", 1.5)
-    context = browser.new_context(color_scheme="dark", reduced_motion="reduce", **ctx)
+    context = browser.new_context(color_scheme="dark", reduced_motion="no-preference" if motion else "reduce", **ctx)
     context.request.post(f"{BASE}/api/login", data={"username": "demo", "password": "demo-password"})
     context.request.put(f"{BASE}/api/me/theme", data={"theme": theme})
     return context
@@ -91,9 +91,17 @@ def snap(page, path: str, name: str, settle: float = 1.2, before=None) -> None:
 
 def shoot(browser) -> None:
     # Bridge: every page.
+    # Overview with motion on, so the spider is out on the web and a flagged thread is mid-shake.
+    ctx = signed_in(browser, "bridge", motion=True)
+    for _ in range(60):  # wait for the first traffic read, which is what raises flags
+        if ctx.request.get(f"{BASE}/api/flags").json():
+            break
+        time.sleep(0.5)
+    snap(ctx.new_page(), "/", "bridge-overview", settle=7)
+    ctx.close()
+
     ctx = signed_in(browser, "bridge")
     page = ctx.new_page()
-    snap(page, "/", "bridge-overview")
     snap(page, "/devices", "bridge-devices")
     snap(page, "/activity", "bridge-activity")
     snap(page, "/settings", "bridge-settings")
