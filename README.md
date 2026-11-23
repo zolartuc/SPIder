@@ -54,6 +54,11 @@ All screenshots use made-up demo data (see [Try the demo](#try-the-demo)).
 - **First contacts:** after a day learning what's normal for a device, SPIder flags any place it contacts for the first time, like a smart plug that suddenly starts calling a new cloud server. Optional phone alerts
 - Ads and trackers are left to Pi-hole. SPIder only looks at lookups Pi-hole allowed, and keeps 30 days of its own history
 
+### Pause a device (with Pi-hole v6)
+- An **Internet** menu on every device: pause for 30 minutes, 1 or 2 hours, until 7am, or block until you unblock it. Pauses lift themselves
+- Works through a "SPIder paused" group in Pi-hole that answers nothing. SPIder checks that rule can only ever affect paused devices, and refuses (and cleans up) if it can't be sure
+- The router, your Pi-hole and SPIder itself can't be paused. It's DNS-level: great for "the Switch is off until morning", not a firewall
+
 ### Dashboard
 - A live spider-web map of your network, plus separate pages for Devices, Activity, Pi-hole and Honeypot
 - Four themes: **Silk**, **Bridge** (starship console), **Cyanotype** (blueprint) and **Amber** (CRT terminal), saved per account

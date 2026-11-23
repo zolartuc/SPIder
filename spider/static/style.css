@@ -352,6 +352,8 @@ main {
 .node:hover .dot, .node:focus-visible .dot { stroke: var(--focus); stroke-width: 3; }
 .node:hover .label, .node:focus-visible .label { fill: var(--focus); }
 .hub-empty { fill: var(--muted); }
+.node.paused .dot { fill: var(--bg); stroke: var(--stranger); stroke-width: 2; stroke-dasharray: 2 2; }
+.node.paused .label { text-decoration: line-through; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12px; color: var(--muted); padding-left: 8px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -383,6 +385,7 @@ main {
 .ev.new_device { border-left-color: var(--stranger); }
 .ev.online { border-left-color: var(--live); }
 .ev.new_contact { border-left-color: var(--c-up); }
+.ev.blocked { border-left-color: var(--stranger); }
 .ev-when { color: var(--muted); font-size: 12px; }
 
 .tip {
@@ -429,6 +432,26 @@ input.name {
 input.name::placeholder { color: var(--muted); }
 input.name:hover { border-color: var(--line); }
 input.name:focus { border-color: var(--live); outline: none; background: var(--bg-2); }
+
+/* Internet access dropdown */
+select.access {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 5px 28px 5px 10px; max-width: 190px;
+  appearance: none; cursor: pointer; text-shadow: inherit;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%; background-size: 5px 5px; background-repeat: no-repeat;
+}
+select.access:hover { border-color: var(--muted); }
+select.access:focus { outline: none; border-color: var(--live); }
+select.access:disabled { opacity: .5; cursor: not-allowed; }
+select.access option { background: var(--bg-2); color: var(--text); }
+tr.paused select.access { color: var(--stranger); border-color: var(--stranger); }
+tr.paused td:nth-child(2), tr.paused td:nth-child(3) { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--stranger) 70%, transparent); }
+.access-state.is-off { color: var(--stranger); font-weight: 600; }
+.access-note { flex-basis: 100%; order: 3; margin-top: -4px; }
+.access-note[hidden] { display: none; }
+[data-theme="bridge"] select.access { border-radius: 999px; border-color: var(--c3); }
+[data-theme="amber"] select.access { border-radius: 0; }
 
 button.claim { background: transparent; color: var(--stranger); box-shadow: inset 0 0 0 1px var(--stranger); padding: 5px 12px; font-size: 13px; }
 button.quiet { background: transparent; color: var(--muted); font-weight: 400; padding: 5px 12px; font-size: 13px; }

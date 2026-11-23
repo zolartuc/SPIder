@@ -73,6 +73,8 @@ const SP = (() => {
       return `${who} contacted <b class="mono">${esc(site)}</b> for the first time${cat.length ? ` <span class="dim">(${esc(cat.join(" "))})</span>` : ""}`;
     }
     if (e.type === "ip_changed") return `${who} changed address, ${esc(e.detail)}`;
+    if (e.type === "blocked") return `${who} was ${esc(e.detail)}`;
+    if (e.type === "unblocked") return `${who} can use the internet again <span class="dim">(${esc(e.detail)})</span>`;
     return `${who} ${EVENT_TEXT[e.type] || esc(e.type)}`;
   }
 

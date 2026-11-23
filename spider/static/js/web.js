@@ -56,7 +56,7 @@ const SpiderWeb = (() => {
     const nodes = el("g", { class: "nodes" }, base);
     const placed = new Map();
     const add = (d, x, y, a, isHub) => {
-      const cls = ["node", d.online ? "live" : "gone", d.known ? "mine" : "stranger", isHub ? "hub" : ""].join(" ");
+      const cls = ["node", d.online ? "live" : "gone", d.known ? "mine" : "stranger", isHub ? "hub" : "", d.block ? "paused" : ""].join(" ");
       const g = el("a", { class: cls, href: `/devices#${encodeURIComponent(d.mac)}`, "data-mac": d.mac,
         "aria-label": `${shortName(d)}, ${d.ip}, ${d.online ? "online" : "offline"}${d.known ? "" : ", not marked as yours"}` }, nodes);
       if (!d.known) el("circle", { cx: x, cy: y, r: isHub ? 15 : 10.5, class: "cocoon" }, g);
@@ -112,7 +112,8 @@ const SpiderWeb = (() => {
     const d = index.get(g.dataset.mac); if (!d) return;
     tip.innerHTML = `<strong>${esc(d.name || d.hostname || "Unnamed device")}</strong>
       <span>${esc(d.ip)}</span><span>${esc(d.vendor || "Unknown maker")}</span>
-      <span>${d.online ? "Online" : `Offline, last seen ${ago(d.last_seen)}`}</span>`;
+      <span>${d.online ? "Online" : `Offline, last seen ${ago(d.last_seen)}`}</span>
+      ${d.block ? `<span>${d.block.until ? `Paused until ${new Date(d.block.until).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}` : "Blocked"}</span>` : ""}`;
     tip.hidden = false;
   });
   svg?.addEventListener("pointermove", (e) => {

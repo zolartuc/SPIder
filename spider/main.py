@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 
-from . import __version__, alerts, auth, settings_store, system
+from . import __version__, alerts, auth, blocking, settings_store, system
 from .config import get_settings
 from .db import connect, init_db
 from .pihole import client as pihole
@@ -52,6 +52,15 @@ async def scan_loop() -> None:
         await asyncio.sleep(settings_store.get("scan_interval"))
 
 
+async def blocks_loop() -> None:
+    while True:
+        await asyncio.sleep(30)
+        try:
+            await asyncio.to_thread(blocking.expire)
+        except Exception:
+            log.exception("Pause expiry crashed")
+
+
 async def traffic_loop() -> None:
     await asyncio.sleep(3)  # let the first device scan go first, so lookups map to known devices
     while True:
@@ -65,7 +74,7 @@ async def traffic_loop() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop())]
+    tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop()), asyncio.create_task(blocks_loop())]
     yield
     for t in tasks:
         t.cancel()
@@ -311,6 +320,10 @@ def devices(_=Depends(viewer)):
             return (999,)
 
     rows.sort(key=lambda d: (-d["online"], d["known"], ip_key(d["ip"])))
+    blocks = blocking.current()
+    for d in rows:
+        d["block"] = blocks.get(d["mac"])
+        d["protected"] = blocking.protected_reason(d["ip"])
     return rows
 
 
@@ -328,6 +341,29 @@ def update_device(mac: str, body: DeviceUpdate, _=Depends(auth.require_admin)):
             conn.execute("UPDATE devices SET name = ? WHERE mac = ?", ((body.name.strip() or None) and body.name.strip()[:40], mac))
         if body.known is not None:
             conn.execute("UPDATE devices SET known = ? WHERE mac = ?", (int(body.known), mac))
+    return {"ok": True}
+
+
+@app.get("/api/blocks")
+async def blocks_status(_=Depends(viewer)):
+    info = await asyncio.to_thread(blocking.availability)
+    return {**info, "blocks": blocking.current()}
+
+
+class BlockBody(BaseModel):
+    minutes: int | None = None  # None = until someone unblocks
+
+
+@app.put("/api/devices/{mac}/block")
+async def block_device(mac: str, body: BlockBody, admin=Depends(auth.require_admin)):
+    if body.minutes is not None and not 5 <= body.minutes <= 7 * 24 * 60:
+        raise HTTPException(422, "Pauses run from 5 minutes to 7 days.")
+    return await asyncio.to_thread(blocking.block, mac, body.minutes, admin["username"])
+
+
+@app.delete("/api/devices/{mac}/block")
+async def unblock_device(mac: str, admin=Depends(auth.require_admin)):
+    await asyncio.to_thread(blocking.unblock, mac, admin["username"])
     return {"ok": True}
 
 

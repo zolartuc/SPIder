@@ -214,3 +214,115 @@ def details() -> dict:
         }
 
     return _call(fetch)
+
+
+# --------------------------------------------------------------------------- device access (v6 only)
+#
+# SPIder pauses a device by putting it in its own Pi-hole group that answers nothing:
+#   group "SPIder paused"  +  a deny regex ".*" attached ONLY to that group.
+# The device keeps its Default group too, so taking it out of "SPIder paused" restores it exactly.
+
+from urllib.parse import quote
+
+PAUSE_GROUP = "SPIder paused"
+CATCH_ALL = ".*"
+SPIDER_TAG = "Added by SPIder"
+
+
+class NotSupported(Exception):
+    pass
+
+
+def _v6_send(client: httpx.Client, base: str, password: str, method: str, path: str, body: dict | None = None):
+    global _sid
+
+    def go():
+        return client.request(method, f"{base}{path}", json=body, headers={"X-FTL-SID": _sid} if _sid else {})
+
+    r = go()
+    if r.status_code == 401:
+        auth = client.post(f"{base}/api/auth", json={"password": password})
+        session = auth.json().get("session", {}) if auth.status_code == 200 else {}
+        if not session.get("valid"):
+            raise AuthFailed
+        _sid = session.get("sid")
+        r = go()
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    return r.json() if r.content else {}
+
+
+def _catch_all(client, base, password) -> dict | None:
+    rules = _v6_send(client, base, password, "GET", "/api/domains/deny/regex") or {}
+    return next((d for d in rules.get("domains", []) if d.get("domain") == CATCH_ALL), None)
+
+
+def _pause_group(client, base, password) -> int:
+    """Find or create the pause group and its catch-all rule, and prove the rule only touches that group.
+
+    Pi-hole allows one ".*" deny-regex entry. If it's on any group other than SPIder's (above all
+    Default, id 0) it would cut off the whole network, so SPIder deletes its own leaked rule and stops.
+    """
+    groups = _v6_send(client, base, password, "GET", "/api/groups")
+    if groups is None:
+        raise NotSupported
+    gid = next((g["id"] for g in groups.get("groups", []) if g.get("name") == PAUSE_GROUP), None)
+    if gid is None:
+        made = _v6_send(client, base, password, "POST", "/api/groups",
+                        {"name": PAUSE_GROUP, "comment": "Devices paused or blocked from SPIder", "enabled": True})
+        gid = made["groups"][0]["id"]
+    if gid == 0:
+        raise RuntimeError("Pi-hole returned the Default group for SPIder's pause group; refusing to continue.")
+
+    rule = _catch_all(client, base, password)
+    if rule is None:
+        _v6_send(client, base, password, "POST", "/api/domains/deny/regex",
+                 {"domain": CATCH_ALL, "comment": "SPIder: answers nothing for paused devices", "groups": [gid], "enabled": True})
+        rule = _catch_all(client, base, password)
+    if rule is None:
+        raise RuntimeError("Pi-hole didn't save SPIder's pause rule.")
+    if set(rule.get("groups") or []) != {gid}:
+        if (rule.get("comment") or "").startswith("SPIder"):
+            _v6_send(client, base, password, "DELETE", f"/api/domains/deny/regex/{quote(CATCH_ALL, safe='')}")
+            raise RuntimeError("Pi-hole put SPIder's pause rule on the wrong group, so SPIder removed it at once to protect your network.")
+        raise RuntimeError("Your Pi-hole already has its own catch-all block rule, so SPIder won't touch it.")
+    return gid
+
+
+def _client(client, base, password, ident: str) -> dict | None:
+    data = _v6_send(client, base, password, "GET", f"/api/clients/{quote(ident, safe='')}")
+    found = (data or {}).get("clients") or []
+    return found[0] if found else None
+
+
+def set_paused(ident: str, paused: bool) -> dict:
+    """Put a device (MAC, upper case) into or out of SPIder's pause group in Pi-hole."""
+
+    def fetch(client, base, password):
+        try:
+            gid = _pause_group(client, base, password)
+        except NotSupported:
+            return {"status": "not_supported"}
+        existing = _client(client, base, password, ident)
+        if paused:
+            if existing:
+                groups = sorted(set(existing.get("groups") or [0]) | {gid})
+                _v6_send(client, base, password, "PUT", f"/api/clients/{quote(ident, safe='')}",
+                         {"comment": existing.get("comment") or "", "groups": groups})
+            else:
+                _v6_send(client, base, password, "POST", "/api/clients",
+                         {"client": ident, "comment": SPIDER_TAG, "groups": [0, gid]})
+        elif existing:
+            groups = [g for g in (existing.get("groups") or []) if g != gid] or [0]
+            if (existing.get("comment") or "").startswith(SPIDER_TAG) and groups == [0]:
+                _v6_send(client, base, password, "DELETE", f"/api/clients/{quote(ident, safe='')}")
+            else:
+                _v6_send(client, base, password, "PUT", f"/api/clients/{quote(ident, safe='')}",
+                         {"comment": existing.get("comment") or "", "groups": groups})
+        return {"status": "ok"}
+
+    try:
+        return _call(fetch, timeout=15)
+    except RuntimeError as exc:
+        return {"status": "unsafe", "error": str(exc)}

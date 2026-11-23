@@ -130,6 +130,11 @@ def query_log() -> list[dict]:
 
 _LOG: list[dict] = []
 
+# Pi-hole v6 group management, in memory: enough for SPIder's pause feature.
+GROUPS = [{"id": 0, "name": "Default", "comment": "The default group", "enabled": True}]
+REGEX_DENY: list[dict] = []
+CLIENTS: dict[str, dict] = {}
+
 
 class Handler(BaseHTTPRequestHandler):
     def _json(self, code: int, body: dict) -> None:
@@ -142,6 +147,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if self._manage("GET"):
+            return
         if path == "/api/stats/summary":
             self._json(200, SUMMARY)
         elif path == "/api/history":
@@ -163,10 +170,59 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._json(404, {"error": "not found"})
 
+    def _body(self) -> dict:
+        n = int(self.headers.get("Content-Length") or 0)
+        return json.loads(self.rfile.read(n) or b"{}") if n else {}
+
+    def _manage(self, method: str) -> bool:
+        from urllib.parse import unquote
+        path = self.path.split("?")[0]
+        if path == "/api/groups":
+            if method == "GET":
+                self._json(200, {"groups": GROUPS}); return True
+            if method == "POST":
+                g = {**self._body(), "id": max(x["id"] for x in GROUPS) + 1}
+                GROUPS.append(g); self._json(201, {"groups": [g]}); return True
+        if path == "/api/domains/deny/regex":
+            if method == "GET":
+                self._json(200, {"domains": REGEX_DENY}); return True
+            if method == "POST":
+                d = {"groups": [0], **self._body(), "type": "deny", "kind": "regex"}
+                REGEX_DENY.append(d); self._json(201, {"domains": [d]}); return True
+        if path.startswith("/api/domains/deny/regex/") and method == "DELETE":
+            dom = unquote(path.rsplit("/", 1)[1])
+            REGEX_DENY[:] = [d for d in REGEX_DENY if d["domain"] != dom]
+            self.send_response(204); self.end_headers(); return True
+        if path == "/api/clients" and method == "POST":
+            c = self._body(); CLIENTS[c["client"]] = c
+            print(f"  [pi-hole] {c['client']} groups -> {c.get('groups')}", flush=True)
+            self._json(201, {"clients": [c]}); return True
+        if path.startswith("/api/clients/"):
+            ident = unquote(path.rsplit("/", 1)[1])
+            if method == "GET":
+                self._json(200, {"clients": [CLIENTS[ident]] if ident in CLIENTS else []}); return True
+            if method == "PUT":
+                CLIENTS[ident] = {**CLIENTS.get(ident, {"client": ident}), **self._body()}
+                print(f"  [pi-hole] {ident} groups -> {CLIENTS[ident].get('groups')}", flush=True)
+                self._json(200, {"clients": [CLIENTS[ident]]}); return True
+            if method == "DELETE":
+                CLIENTS.pop(ident, None)
+                print(f"  [pi-hole] {ident} removed (back to normal)", flush=True)
+                self.send_response(204); self.end_headers(); return True
+        return False
+
     def do_POST(self):
         if self.path.startswith("/api/auth"):
             self._json(200, {"session": {"valid": True, "sid": "demo"}})
-        else:
+        elif not self._manage("POST"):
+            self._json(404, {"error": "not found"})
+
+    def do_PUT(self):
+        if not self._manage("PUT"):
+            self._json(404, {"error": "not found"})
+
+    def do_DELETE(self):
+        if not self._manage("DELETE"):
             self._json(404, {"error": "not found"})
 
     def log_message(self, *args):

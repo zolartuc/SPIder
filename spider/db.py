@@ -69,6 +69,14 @@ CREATE TABLE IF NOT EXISTS traffic_devices (
     first_seen  TEXT NOT NULL
 );
 
+-- Devices whose internet is paused (until a time) or blocked (until NULL = until someone unblocks).
+CREATE TABLE IF NOT EXISTS blocks (
+    mac         TEXT PRIMARY KEY,
+    until       TEXT,
+    created     TEXT NOT NULL,
+    by_user     TEXT
+);
+
 CREATE TABLE IF NOT EXISTS meta (
     key         TEXT PRIMARY KEY,
     value       TEXT NOT NULL
