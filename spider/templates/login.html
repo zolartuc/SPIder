@@ -36,6 +36,7 @@
   </form>
   {% if mode != "setup" %}<a class="muted small back" href="/">Back to the dashboard</a>{% endif %}
 </main>
+<footer class="auth-foot">SPIder {{ build.version }}{% if build.short %}, build <code>{{ build.short }}</code>{% endif %}</footer>
 <script>
 document.getElementById("auth-form").addEventListener("submit", async (e) => {
   e.preventDefault();

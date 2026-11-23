@@ -17,7 +17,9 @@
       else if (input.type === "password") input.value = "";
       else if (v !== undefined) input.value = v ?? "";
     });
-    $("pihole-password").placeholder = values.pihole_password_set ? "Saved. Type a new one to replace it." : "";
+    document.querySelectorAll('[data-settings-form] input[type="password"]').forEach((i) => {
+      i.placeholder = values[`${i.name}_set`] ? "Saved. Type a new one to replace it." : "";
+    });
     toggleStatic();
   }
 
@@ -92,6 +94,7 @@
       values = r.values; fill();
       result.textContent = r.changed.length ? "Saved" : "Nothing changed";
       if (form.querySelector('[name="pihole_url"]')) testPihole();
+      if (form.querySelector('[name="update_repo"]')) loadVersion();
       showApply(form, r.apply);
     } catch (err) {
       const slot = err.field && form.querySelector(`[data-error-for="${err.field}"]`);
@@ -99,6 +102,35 @@
       else result.textContent = err.message;
     } finally { btn.disabled = false; }
   }));
+
+  // ---------- version and updates
+  function renderUpdate(v, u) {
+    const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "not yet");
+    $("build-info").innerHTML = [
+      ["Version", v.version],
+      ["Build", v.short ? `${v.short}${v.branch ? ` (${v.branch})` : ""}` : "unknown"],
+      ["Latest on GitHub", u && !u.error ? (u.available ? `${u.latest}, ${u.behind_by} newer` : "You're up to date") : "–"],
+      ["Last checked", when(u && u.checked_at)],
+    ].map(([k, x]) => `<div><dt>${esc(k)}</dt><dd>${esc(x)}</dd></div>`).join("");
+    const box = $("update-result");
+    if (!u) { box.innerHTML = ""; return; }
+    if (u.error) { box.innerHTML = `<p class="ph-status bad">${esc(u.error)}</p>`; return; }
+    box.innerHTML = u.available
+      ? `<p class="ph-status ok"><b>${u.behind_by} newer change${u.behind_by === 1 ? "" : "s"} on GitHub.</b> ${
+          v.can_update ? "Use <b>Update now</b> at the bottom of the page." : "In Portainer, open the spider stack and click <b>Pull and redeploy</b>, or add the webhook below to update from here."}</p>
+         <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>`
+      : `<p class="ph-status ok">You're running the latest build.</p>`;
+  }
+  async function loadVersion() {
+    try { const v = await api("/api/version"); renderUpdate(v, v.update); } catch (e) {}
+  }
+  $("update-check")?.addEventListener("click", async () => {
+    const b = $("update-check"); b.disabled = true; b.textContent = "Checking…";
+    try { const u = await api("/api/version/check", { method: "POST" }); const v = await api("/api/version"); renderUpdate(v, u); SP.refreshVersion?.(); }
+    catch (e) { toast(e.message); }
+    b.disabled = false; b.textContent = "Check for updates";
+  });
+  loadVersion();
 
   // ---------- Pi-hole connection status
   async function testPihole() {

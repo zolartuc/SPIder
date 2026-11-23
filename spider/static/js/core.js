@@ -138,5 +138,56 @@ const SP = (() => {
   loadStatus();
   setInterval(loadStatus, 10_000);
 
-  return { $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
+  // ---------- version footer: "Update available" badge, like Pi-hole's
+  let versionInfo = null, updating = false;
+  async function refreshVersion() {
+    let v;
+    try { v = await api("/api/version"); } catch (e) { return; }
+    versionInfo = v;
+    const u = v.update, pill = $("update-pill");
+    if (!pill) return;
+    pill.hidden = !(u && u.available);
+    if (u && u.available) pill.textContent = `Update available: ${u.behind_by} new change${u.behind_by === 1 ? "" : "s"}`;
+  }
+  function renderPop() {
+    const v = versionInfo, u = v && v.update, pop = $("update-pop");
+    if (!u) return;
+    const how = isAdmin && v.can_update
+      ? `<button type="button" id="update-now">Update now</button><span class="muted small">SPIder rebuilds through Portainer and is back in a few minutes.</span>`
+      : isAdmin
+        ? `<p class="muted small">In Portainer, open the spider stack and click <b>Pull and redeploy</b>. To update from here instead, add your Portainer webhook in <a href="/settings#updates">Settings, Updates</a>.</p>`
+        : `<p class="muted small">Ask an admin to update SPIder.</p>`;
+    pop.innerHTML = `<h3>${u.behind_by} new change${u.behind_by === 1 ? "" : "s"} on GitHub</h3>
+      <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>
+      <div class="pop-foot">${how}</div>`;
+  }
+  $("update-pill")?.addEventListener("click", () => {
+    const pop = $("update-pop"), open = pop.hidden;
+    if (open) renderPop();
+    pop.hidden = !open;
+    $("update-pill").setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", async (e) => {
+    const pop = $("update-pop");
+    if (pop && !pop.hidden && !e.target.closest(".app-foot")) { pop.hidden = true; $("update-pill").setAttribute("aria-expanded", "false"); }
+    if (!e.target.closest("#update-now") || updating) return;
+    if (!confirm("Update SPIder now? It restarts while Portainer rebuilds it, usually a few minutes.")) return;
+    updating = true;
+    const btn = e.target.closest("#update-now"); btn.disabled = true; btn.textContent = "Updating…";
+    const before = versionInfo && versionInfo.commit;
+    try { await api("/api/version/update", { method: "POST" }); }
+    catch (err) { toast(err.message); updating = false; btn.disabled = false; btn.textContent = "Update now"; return; }
+    toast("Portainer is rebuilding SPIder. This page reloads when it's back.");
+    // Wait for the new build to answer, then reload.
+    const poll = setInterval(async () => {
+      try {
+        const v = await api("/api/version");
+        if (v.commit && v.commit !== before) { clearInterval(poll); location.reload(); }
+      } catch (e2) { /* restarting */ }
+    }, 10_000);
+  });
+  refreshVersion();
+  setInterval(refreshVersion, 10 * 60_000);
+
+  return { refreshVersion: () => refreshVersion(), $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
 })();

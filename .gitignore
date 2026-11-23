@@ -7,3 +7,4 @@ data/
 *.db
 .pytest_cache/
 data-demo/
+spider/build.json

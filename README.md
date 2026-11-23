@@ -135,7 +135,13 @@ Give the Pi a **fixed IP address** (a DHCP reservation in your router) so you ca
 3. Optional environment variables: `SPIDER_PORT` (default `8080`), `TZ` (default `Europe/London`), `SPIDER_PIHOLE_URL`, `SPIDER_PIHOLE_PASSWORD`, `SPIDER_NTFY_TOPIC`. You can also set these later on SPIder's Settings page.
 4. **Deploy the stack.** The first build takes a few minutes on a Pi 4. Then open `http://<pi-ip>:8080` and create your admin account.
 
-To pick up new versions, turn on **GitOps updates** (polling) in the stack, or press **Pull and redeploy**.
+### Updates
+
+The footer of every page shows the version and build SPIder is running, and an **Update available** badge when GitHub has newer changes (checked every 6 hours, or from **Settings > Updates > Check for updates**).
+
+- **Private repository:** add a read-only GitHub token in **Settings > Updates** so SPIder can see new changes (the same kind of token as Portainer's).
+- **Update now:** in Portainer, open the stack, turn on **GitOps updates**, choose **Webhook** and copy the link. Paste it into **Settings > Updates > Portainer webhook**, and admins get an **Update now** button that rebuilds SPIder and reloads the page when it's back.
+- Or update by hand: open the stack in Portainer and press **Pull and redeploy**.
 
 ## Configuration
 

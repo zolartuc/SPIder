@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 
-from . import __version__, alerts, auth, blocking, settings_store, system
+from . import __version__, alerts, auth, blocking, settings_store, system, version
 from .config import get_settings
 from .db import connect, init_db
 from .pihole import client as pihole
@@ -64,6 +64,16 @@ async def scan_loop() -> None:
         await asyncio.sleep(settings_store.get("scan_interval"))
 
 
+async def update_loop() -> None:
+    await asyncio.sleep(20)
+    while True:
+        try:
+            await asyncio.to_thread(version.check)
+        except Exception:
+            log.exception("Update check crashed")
+        await asyncio.sleep(version.CHECK_EVERY)
+
+
 async def blocks_loop() -> None:
     while True:
         await asyncio.sleep(30)
@@ -86,7 +96,8 @@ async def traffic_loop() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop()), asyncio.create_task(blocks_loop())]
+    tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop()), asyncio.create_task(blocks_loop()),
+             asyncio.create_task(update_loop())]
     yield
     for t in tasks:
         t.cancel()
@@ -125,7 +136,7 @@ def page(request: Request, name: str, title: str, template: str):
     return templates.TemplateResponse(request, template, {
         "page": name, "title": title, "user": user, "nav": NAV, "version": __version__,
         "theme": (user or {}).get("theme"), "device_name": settings_store.get("device_name"),
-        "demo": get_settings().demo,
+        "demo": get_settings().demo, "build": version.current(),
     })
 
 
@@ -172,7 +183,7 @@ def login_page(request: Request, next: str | None = None):
         return RedirectResponse("/setup", status_code=303)
     if auth.current_user(request):
         return RedirectResponse(safe_next(next), status_code=303)
-    return templates.TemplateResponse(request, "login.html", {"mode": "login", "next": safe_next(next), "demo": get_settings().demo})
+    return templates.TemplateResponse(request, "login.html", {"mode": "login", "next": safe_next(next), "demo": get_settings().demo, "build": version.current()})
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -376,6 +387,27 @@ async def block_device(mac: str, body: BlockBody, admin=Depends(auth.require_adm
 @app.delete("/api/devices/{mac}/block")
 async def unblock_device(mac: str, admin=Depends(auth.require_admin)):
     await asyncio.to_thread(blocking.unblock, mac, admin["username"])
+    return {"ok": True}
+
+
+@app.get("/api/version")
+def version_info(_=Depends(viewer)):
+    return {**version.current(), "update": version.cached(),
+            "can_update": bool(settings_store.get("portainer_webhook"))}
+
+
+@app.post("/api/version/check")
+async def version_check(_=Depends(auth.require_admin)):
+    return await asyncio.to_thread(version.check, True)
+
+
+@app.post("/api/version/update")
+async def version_update(admin=Depends(auth.require_admin)):
+    try:
+        await asyncio.to_thread(version.trigger_portainer)
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc))
+    log.info("Update requested by %s through Portainer", admin["username"])
     return {"ok": True}
 
 

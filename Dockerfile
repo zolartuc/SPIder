@@ -1,3 +1,10 @@
+# Stage 1: work out which git commit is being built (the final image has no .git).
+FROM python:3.12-slim AS buildinfo
+WORKDIR /src
+COPY . .
+RUN python spider/buildinfo.py .git > /build.json
+
+# Stage 2: SPIder itself.
 FROM python:3.12-slim
 
 # No apt-get: everything SPIder needs is pure Python or ships as a prebuilt wheel,
@@ -12,6 +19,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY spider ./spider
+COPY --from=buildinfo /build.json ./spider/build.json
 
 ENV SPIDER_DATA_DIR=/app/data
 EXPOSE 8080

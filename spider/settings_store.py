@@ -19,7 +19,7 @@ from .db import connect
 HOSTNAME_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$")
 IFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,15}$")
 
-SECRET_KEYS = {"pihole_password"}
+SECRET_KEYS = {"pihole_password", "github_token", "portainer_webhook"}
 SYSTEM_KEYS = {"hostname", "timezone", "lan_interface", "lan_mode", "lan_address", "lan_gateway", "lan_dns"}
 
 
@@ -62,6 +62,11 @@ class AppSettings(BaseModel):
 
     # Access
     guest_view: bool = True
+
+    # Updates
+    update_repo: str = "zolartuc/SPIder"
+    github_token: str = ""
+    portainer_webhook: str = ""
 
     @field_validator("*", mode="before")
     @classmethod
@@ -137,7 +142,22 @@ class AppSettings(BaseModel):
             return str(net)
         return v
 
-    @field_validator("pihole_url", "ntfy_url")
+    @field_validator("update_repo")
+    @classmethod
+    def valid_repo(cls, v):
+        v = re.sub(r"^https?://github\.com/", "", v, flags=re.IGNORECASE).strip("/")
+        if v and not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", v):
+            raise ValueError("Use owner/name, like zolartuc/SPIder.")
+        return v.removesuffix(".git")
+
+    @field_validator("github_token")
+    @classmethod
+    def valid_token(cls, v):
+        if v and not re.match(r"^[A-Za-z0-9_]{20,255}$", v):
+            raise ValueError("That doesn't look like a GitHub token. Paste the whole thing, starting github_pat_ or ghp_.")
+        return v
+
+    @field_validator("pihole_url", "ntfy_url", "portainer_webhook")
     @classmethod
     def valid_url(cls, v):
         v = normalise_url(v)

@@ -1,0 +1,10 @@
+# Keep the build small and private. .git stays in: it tells SPIder which build it is.
+.venv/
+venv/
+data/
+data-demo/
+docs/
+**/__pycache__/
+*.pyc
+.env
+*.db

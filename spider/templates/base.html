@@ -58,6 +58,12 @@
   <main id="content">
     {% block content %}{% endblock %}
   </main>
+
+  <footer class="app-foot">
+    <span class="build">SPIder {{ build.version }}{% if build.short %}, build <code>{{ build.short }}</code>{% endif %}</span>
+    <button type="button" class="update-pill" id="update-pill" aria-expanded="false" aria-controls="update-pop" hidden></button>
+    <div class="update-pop" id="update-pop" role="dialog" aria-label="Update available" hidden></div>
+  </footer>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

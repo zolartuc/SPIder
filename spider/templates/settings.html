@@ -11,6 +11,7 @@
     <a href="#pihole">Pi-hole</a>
     <a href="#alerts">Alerts</a>
     <a href="#access">Access</a>
+    <a href="#updates">Updates</a>
     {% if admin %}<a href="#users">Users</a>{% endif %}
   </nav>
 
@@ -169,6 +170,30 @@
           <label class="check"><input type="checkbox" name="guest_view"> Let anyone on the network view the dashboard without signing in</label>
           <small class="hint">Viewing only. Changes always need an admin.</small>
           <div class="form-foot"><button type="submit">Save</button><span class="result" role="status"></span></div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section class="set" id="updates">
+      <h2>Updates</h2>
+      <p class="muted">SPIder checks GitHub every 6 hours for newer changes and shows them at the bottom of every page.</p>
+      <dl class="sysinfo" id="build-info"></dl>
+      <div id="update-result" class="update-result"></div>
+      <form class="form" data-settings-form>
+        <fieldset {% if not admin %}disabled{% endif %}>
+          <label>Repository <input name="update_repo" spellcheck="false" placeholder="zolartuc/SPIder">
+            <small class="error" data-error-for="update_repo"></small></label>
+          <label>GitHub token <input name="github_token" type="password" autocomplete="off">
+            <small class="hint">Only needed while the repository is private. A fine-grained token for this repository only, with Contents: Read-only. The one you made for Portainer works.</small>
+            <small class="error" data-error-for="github_token"></small></label>
+          <label>Portainer webhook <input name="portainer_webhook" type="password" autocomplete="off" spellcheck="false">
+            <small class="hint">Turns on <b>Update now</b>. In Portainer, open the spider stack, turn on GitOps updates, choose <b>Webhook</b>, and copy the link it shows.</small>
+            <small class="error" data-error-for="portainer_webhook"></small></label>
+          <div class="form-foot">
+            <button type="submit">Save</button>
+            <button type="button" class="secondary" id="update-check">Check for updates</button>
+            <span class="result" role="status"></span>
+          </div>
         </fieldset>
       </form>
     </section>
