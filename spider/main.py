@@ -25,6 +25,18 @@ log = logging.getLogger("spider")
 
 HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=HERE / "templates")
+
+
+def asset(path: str) -> str:
+    """/static URL with a version stamp from the file's modified time, so browsers never run stale code."""
+    try:
+        stamp = int((HERE / "static" / path).stat().st_mtime)
+    except OSError:
+        stamp = 0
+    return f"/static/{path}?v={stamp}"
+
+
+templates.env.globals["asset"] = asset
 _scan_lock = asyncio.Lock()
 THEMES = ("silk", "bridge", "cyanotype", "amber")
 

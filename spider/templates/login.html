@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ "Set up" if mode == "setup" else "Sign in" }} | SPIder</title>
-  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="{{ asset('logo.svg') }}" type="image/svg+xml">
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("spider-theme") || "silk"; } catch (e) {}</script>
   {% include "_fonts.html" %}
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head>
 <body class="auth-body">
 <main class="auth">

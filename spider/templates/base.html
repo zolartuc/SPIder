@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} | SPIder</title>
-  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="{{ asset('logo.svg') }}" type="image/svg+xml">
   {% if not theme %}
   <script>
     // Not signed in: use the theme this browser picked last time.
@@ -12,7 +12,7 @@
   </script>
   {% endif %}
   {% include "_fonts.html" %}
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head>
 <body data-page="{{ page }}" data-role="{{ user.role if user else 'guest' }}" data-signed-in="{{ 'true' if user else 'false' }}">
 <a class="skip" href="#content">Skip to content</a>
@@ -61,7 +61,7 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="/static/js/core.js"></script>
+<script src="{{ asset('js/core.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
