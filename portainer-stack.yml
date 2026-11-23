@@ -10,7 +10,9 @@
 services:
   spider:
     build: .
-    image: spider:latest
+    # Always built here from the repo, never downloaded: stops "Pull and redeploy" from
+    # looking for a "spider" image on Docker Hub.
+    pull_policy: build
     container_name: spider
     restart: unless-stopped
     # Host networking so the scanner sees your real LAN, not Docker's internal network.
