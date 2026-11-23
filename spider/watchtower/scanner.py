@@ -14,8 +14,10 @@ import ipaddress
 import logging
 import platform
 import re
+import shutil
 import socket
 import subprocess
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
@@ -82,12 +84,25 @@ def scan_arp(subnet: str, timeout: float = 2.0) -> list[Host]:
     return [Host(ip=r.psrc, mac=normalise_mac(r.hwsrc)) for _, r in answered]
 
 
+_HAS_PING = shutil.which("ping") is not None
+
+
 def _ping(ip: str, timeout: float) -> None:
     if IS_WINDOWS:
         cmd = ["ping", "-n", "1", "-w", str(int(timeout * 1000)), ip]
     else:
         cmd = ["ping", "-c", "1", "-W", str(max(1, int(timeout))), ip]
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _nudge(ip: str) -> None:
+    """No ping available (e.g. a slim container): send one empty UDP packet instead.
+    The OS has to look the address up on the LAN first, which fills the ARP table just the same."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.sendto(b"", (ip, 9))  # port 9 is "discard"
+    except OSError:
+        pass
 
 
 def read_arp_table(network: ipaddress.IPv4Network) -> list[Host]:
@@ -119,8 +134,13 @@ def read_arp_table(network: ipaddress.IPv4Network) -> list[Host]:
 
 def scan_ping(subnet: str, timeout: float = 1.0) -> list[Host]:
     network = ipaddress.ip_network(subnet, strict=False)
-    with ThreadPoolExecutor(max_workers=64) as pool:
-        list(pool.map(lambda ip: _ping(str(ip), timeout), network.hosts()))
+    if _HAS_PING:
+        with ThreadPoolExecutor(max_workers=64) as pool:
+            list(pool.map(lambda ip: _ping(str(ip), timeout), network.hosts()))
+    else:
+        for ip in network.hosts():
+            _nudge(str(ip))
+        time.sleep(timeout + 1.5)  # give the OS time to collect ARP replies
     return read_arp_table(network)
 
 

@@ -1,12 +1,15 @@
 FROM python:3.12-slim
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends iputils-ping net-tools \
- && rm -rf /var/lib/apt/lists/*
+# No apt-get: everything SPIder needs is pure Python or ships as a prebuilt wheel,
+# so the image builds on any Pi without downloading Debian packages.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY spider ./spider
 
