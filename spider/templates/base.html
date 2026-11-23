@@ -26,6 +26,7 @@
   <header class="topbar">
     <h1>{{ title }}</h1>
     <div class="top-right">
+      {% if demo %}<span class="demo-badge" title="Made-up devices and a stand-in Pi-hole. Nothing here is your real network.">Demo</span>{% endif %}
       <span id="scan-status" class="scan-status"></span>
       {% if user %}<button id="scan-btn" type="button">Scan now</button>{% endif %}
       {% if user %}

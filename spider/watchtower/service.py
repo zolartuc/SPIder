@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from .. import alerts, settings_store
+from ..config import get_settings
 from ..db import add_event, connect, now
 from . import scanner, vendors
 
@@ -14,6 +15,12 @@ last_scan: dict = {"at": None, "method": None, "subnet": None, "found": 0, "erro
 
 def run_scan() -> dict:
     s = settings_store.load()
+    if get_settings().demo:
+        # Demo mode: don't touch the real network, just report what's in the database.
+        with connect() as conn:
+            online = conn.execute("SELECT COUNT(*) FROM devices WHERE online = 1").fetchone()[0]
+        last_scan.update(at=now(), method="arp", subnet=s.scan_subnet or "192.168.1.0/24", found=online, error=None)
+        return last_scan
     subnet = s.scan_subnet or scanner.default_subnet()
     try:
         hosts, method = scanner.scan(subnet, s.scan_method)

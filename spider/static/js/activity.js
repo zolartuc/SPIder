@@ -1,6 +1,6 @@
 // Activity page: everything that happened, grouped by day, with filters.
 (() => {
-  const { $, esc, api, eventWho, EVENT_TEXT } = SP;
+  const { $, esc, api, eventLine } = SP;
   let filter = "";
   let events = [];
 
@@ -32,7 +32,7 @@
         <ol class="events">${list.map((e) => `
           <li class="ev ${esc(e.type)}">
             <time datetime="${esc(e.ts)}">${time(e.ts)}</time>
-            <span class="ev-what"><b>${esc(eventWho(e))}</b> ${EVENT_TEXT[e.type] || esc(e.type)}${e.type === "ip_changed" ? `, ${esc(e.detail)}` : ""}</span>
+            <span class="ev-what">${eventLine(e)}</span>
           </li>`).join("")}
         </ol>
       </section>`).join("");

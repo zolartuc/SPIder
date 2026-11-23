@@ -16,6 +16,8 @@ from .config import get_settings
 from .db import connect, init_db
 from .pihole import client as pihole
 from .watchtower import scanner
+from .traffic import collector as traffic_collector
+from .traffic import views as traffic_views
 from .watchtower import service as watchtower
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -30,6 +32,7 @@ NAV = [
     ("overview", "/", "Overview"),
     ("devices", "/devices", "Devices"),
     ("activity", "/activity", "Activity"),
+    ("traffic", "/traffic", "Traffic"),
     ("pihole", "/pihole", "Pi-hole"),
     ("honeypot", "/honeypot", "Honeypot"),
 ]
@@ -49,12 +52,23 @@ async def scan_loop() -> None:
         await asyncio.sleep(settings_store.get("scan_interval"))
 
 
+async def traffic_loop() -> None:
+    await asyncio.sleep(3)  # let the first device scan go first, so lookups map to known devices
+    while True:
+        try:
+            await asyncio.to_thread(traffic_collector.run)
+        except Exception:
+            log.exception("Traffic collector crashed")
+        await asyncio.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    task = asyncio.create_task(scan_loop())
+    tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop())]
     yield
-    task.cancel()
+    for t in tasks:
+        t.cancel()
 
 
 app = FastAPI(title="SPIder", version=__version__, lifespan=lifespan)
@@ -90,6 +104,7 @@ def page(request: Request, name: str, title: str, template: str):
     return templates.TemplateResponse(request, template, {
         "page": name, "title": title, "user": user, "nav": NAV, "version": __version__,
         "theme": (user or {}).get("theme"), "device_name": settings_store.get("device_name"),
+        "demo": get_settings().demo,
     })
 
 
@@ -115,6 +130,11 @@ def pihole_page(request: Request):
     return page(request, "pihole", "Pi-hole", "pihole.html")
 
 
+@app.get("/traffic", response_class=HTMLResponse)
+def traffic_page(request: Request):
+    return page(request, "traffic", "Traffic", "traffic.html")
+
+
 @app.get("/honeypot", response_class=HTMLResponse)
 def honeypot_page(request: Request):
     return page(request, "honeypot", "Honeypot", "honeypot.html")
@@ -131,7 +151,7 @@ def login_page(request: Request, next: str | None = None):
         return RedirectResponse("/setup", status_code=303)
     if auth.current_user(request):
         return RedirectResponse(safe_next(next), status_code=303)
-    return templates.TemplateResponse(request, "login.html", {"mode": "login", "next": safe_next(next)})
+    return templates.TemplateResponse(request, "login.html", {"mode": "login", "next": safe_next(next), "demo": get_settings().demo})
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -316,7 +336,7 @@ def events(limit: int = 50, _=Depends(viewer)):
     with connect() as conn:
         rows = conn.execute(
             "SELECT e.*, d.name, d.vendor FROM events e LEFT JOIN devices d ON d.mac = e.mac "
-            "ORDER BY e.id DESC LIMIT ?",
+            "ORDER BY e.ts DESC, e.id DESC LIMIT ?",
             (max(1, min(limit, 500)),),
         ).fetchall()
     return [dict(r) for r in rows]
@@ -325,6 +345,33 @@ def events(limit: int = 50, _=Depends(viewer)):
 @app.get("/api/pihole")
 async def pihole_summary(_=Depends(viewer)):
     return await asyncio.to_thread(pihole.summary)
+
+
+@app.get("/api/pihole/details")
+async def pihole_details(_=Depends(viewer)):
+    data = await asyncio.to_thread(pihole.details)
+    if data.get("status") == "ok" and data.get("top_clients"):
+        # Put SPIder's own names on Pi-hole's clients, so "192.168.1.21" reads "Living room TV".
+        with connect() as conn:
+            known = {r["ip"]: dict(r) for r in conn.execute("SELECT ip, mac, name, hostname, vendor FROM devices")}
+        for c in data["top_clients"]:
+            d = known.get(c.get("ip"))
+            if d:
+                c["device"] = {"mac": d["mac"], "name": d["name"] or d["hostname"], "vendor": d["vendor"]}
+    return data
+
+
+@app.get("/api/traffic")
+async def traffic_overview(_=Depends(viewer)):
+    return await asyncio.to_thread(traffic_views.overview)
+
+
+@app.get("/api/traffic/device/{key}")
+async def traffic_device(key: str, _=Depends(viewer)):
+    data = await asyncio.to_thread(traffic_views.device, key)
+    if data is None:
+        raise HTTPException(404, "SPIder hasn't seen any traffic from that device.")
+    return data
 
 
 def run() -> None:

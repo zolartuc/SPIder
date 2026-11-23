@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Off by default: needs SPIder running directly on the Pi as root (not in Docker).
     allow_system_changes: bool = False
 
+    # Demo mode: never scans the real network and reports made-up system info.
+    # Used with scripts/demo to take screenshots. See README.
+    demo: bool = False
+
     # Web
     host: str = "0.0.0.0"
     port: int = 8080

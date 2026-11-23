@@ -50,6 +50,7 @@ class AppSettings(BaseModel):
     ntfy_url: str = "https://ntfy.sh"
     ntfy_topic: str = ""
     alert_new_device: bool = True
+    alert_new_contact: bool = False
 
     # Access
     guest_view: bool = True

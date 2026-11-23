@@ -69,7 +69,24 @@ const SpiderWeb = (() => {
       const [x, y] = pt(a, R * (d.online ? (i % 2 ? 0.58 : 0.79) : 1.0));
       add(d, x, y, a, false);
     });
+    untangleLabels(svg, cy);
     drawn = true;
+  }
+
+  // Nudge labels that overlap a neighbour up or down (away from the hub) until they're clear.
+  function untangleLabels(svg, cy) {
+    const placed = [];
+    const hits = (b) => placed.some((p) => b.x < p.x + p.width && b.x + b.width > p.x && b.y < p.y + p.height && b.y + b.height > p.y);
+    for (const t of svg.querySelectorAll(".node .label")) {
+      let box;
+      try { box = t.getBBox(); } catch (e) { return; } // not rendered (hidden tab)
+      const step = Number(t.getAttribute("y")) >= cy ? 14 : -14;
+      for (let tries = 0; tries < 6 && hits(box); tries++) {
+        t.setAttribute("y", Number(t.getAttribute("y")) + step);
+        box = t.getBBox();
+      }
+      placed.push({ x: box.x - 4, y: box.y - 1, width: box.width + 8, height: box.height + 2 });
+    }
   }
 
   // Tooltip

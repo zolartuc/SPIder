@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="traffic-page">
+  <div id="tr-empty" class="tr-empty" hidden></div>
+
+  <div id="tr-main" class="traffic" hidden>
+    <nav class="tr-list" aria-label="Devices">
+      <button type="button" class="tr-item all" data-key="" aria-current="true">
+        <span class="tr-name"><b>All devices</b><small id="tr-all-sub"></small></span>
+      </button>
+      <div id="tr-devices"></div>
+    </nav>
+
+    <div class="tr-detail" id="tr-detail" aria-live="polite"></div>
+  </div>
+
+  <p class="muted small tr-foot">
+    Traffic comes from the lookups your Pi-hole answers, read every minute. Anything Pi-hole blocked
+    (ads and trackers) is left out. SPIder spends a device's first 24 hours learning what's normal
+    for it, then flags any place it contacts for the first time.
+  </p>
+</section>
+<div id="tip" class="tip" role="status" hidden></div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/traffic.js"></script>{% endblock %}

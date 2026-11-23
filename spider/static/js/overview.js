@@ -1,6 +1,6 @@
 // Overview page: the web, a plain-English summary, Pi-hole at a glance, latest activity.
 (() => {
-  const { $, esc, ago, fmt, api, eventWho, EVENT_TEXT } = SP;
+  const { $, esc, ago, fmt, api, eventLine } = SP;
 
   async function loadDevices() {
     const devices = await api("/api/devices");
@@ -22,7 +22,7 @@
     list.innerHTML = events.length
       ? events.map((e) => `
           <li class="ev ${esc(e.type)}">
-            <span class="ev-what"><b>${esc(eventWho(e))}</b> ${EVENT_TEXT[e.type] || esc(e.type)}</span>
+            <span class="ev-what">${eventLine(e)}</span>
             <span class="ev-when">${ago(e.ts)}</span>
           </li>`).join("")
       : `<li class="muted">Nothing yet. Changes on your network appear here.</li>`;

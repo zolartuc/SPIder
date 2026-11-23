@@ -21,6 +21,7 @@
   <p class="muted">This is the first time SPIder has run. The admin can change settings, name devices and add other people.</p>
   {% else %}
   <h1>Sign in</h1>
+  {% if demo %}<p class="muted demo-hint">Demo mode. Sign in as <b>demo</b> / <b>demo-password</b>, or <b>guest</b> / <b>guest-password</b> for the view-only side.</p>{% endif %}
   {% endif %}
 
   <form id="auth-form" class="form" data-mode="{{ mode }}" data-next="{{ next }}">

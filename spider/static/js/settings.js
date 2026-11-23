@@ -156,8 +156,9 @@
   load()
     .then(() => {
       // Arrived via a link like /settings#pihole: jump there once the forms have filled in.
-      const target = location.hash && document.getElementById(location.hash.slice(1));
-      target?.scrollIntoView({ block: "start" });
+      const id = location.hash.slice(1);
+      const target = id ? document.getElementById(id) : null;
+      if (target) target.scrollIntoView({ block: "start" });
     })
     .catch((e) => toast(e.message));
   loadUsers().catch(console.error);

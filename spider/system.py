@@ -29,7 +29,21 @@ def _read(path: str) -> str | None:
         return None
 
 
+DEMO_INFO = {
+    "hostname": "spider",
+    "ip": "192.168.1.10",
+    "model": "Raspberry Pi 4 Model B Rev 1.5",
+    "is_pi": True,
+    "os": "Debian GNU/Linux 12 (bookworm)",
+    "cpu_temp_c": 46.7,
+    "uptime_s": 3 * 86400 + 7 * 3600,
+    "can_apply": False,
+}
+
+
 def info() -> dict:
+    if get_settings().demo:
+        return dict(DEMO_INFO)
     model = _read("/proc/device-tree/model")
     temp_raw = _read("/sys/class/thermal/thermal_zone0/temp")
     uptime_raw = _read("/proc/uptime")

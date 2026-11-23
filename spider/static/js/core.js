@@ -47,13 +47,33 @@ const SP = (() => {
 
   const clip = (s, n = 16) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
-  const tidyVendor = (v) => v.replace(/,?\s*(Inc\.?|Ltd\.?|Co\.?,?|Limited|Corporation|Corp\.?)\s*$/gi, "").replace(/[,.\s]+$/, "");
+  // "Xiaomi Communications Co Ltd" -> "Xiaomi Communications". Strips stacked company suffixes.
+  const tidyVendor = (v) => {
+    let out = v, prev;
+    do {
+      prev = out;
+      out = out.replace(/[,.\s]*\b(Inc|Ltd|Co|LLC|GmbH|SAS|Limited|Corporation|Corp|International|Intl|Trading)\.?,?\s*$/i, "").trim();
+    } while (out !== prev && out.length > 2);
+    return out || v;
+  };
 
   function eventWho(e) {
     if (e.name) return e.name;
-    const ip = (e.detail || "").split(" ")[0];
+    const parts = (e.detail || "").split(" ");
+    const ip = e.type === "new_contact" ? parts[1] : parts[0];
     if (!e.vendor || e.vendor.startsWith("Private")) return `A ${e.vendor ? "phone or laptop" : "device"} at ${ip}`;
     return tidyVendor(e.vendor);
+  }
+
+  // One line of HTML describing an event, e.g. "<b>Smart plug</b> contacted <b>tuyacn.com</b> for the first time".
+  function eventLine(e) {
+    const who = `<b>${esc(eventWho(e))}</b>`;
+    if (e.type === "new_contact") {
+      const [site, , ...cat] = (e.detail || "").split(" ");
+      return `${who} contacted <b class="mono">${esc(site)}</b> for the first time${cat.length ? ` <span class="dim">(${esc(cat.join(" "))})</span>` : ""}`;
+    }
+    if (e.type === "ip_changed") return `${who} changed address, ${esc(e.detail)}`;
+    return `${who} ${EVENT_TEXT[e.type] || esc(e.type)}`;
   }
 
   const EVENT_TEXT = {
@@ -61,6 +81,7 @@ const SP = (() => {
     online: "came back online",
     offline: "went offline",
     ip_changed: "changed address",
+    new_contact: "contacted somewhere new",
   };
 
   // ---------- theme
@@ -115,5 +136,5 @@ const SP = (() => {
   loadStatus();
   setInterval(loadStatus, 10_000);
 
-  return { $, esc, ago, fmt, api, toast, shortName, clip, eventWho, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
+  return { $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
 })();

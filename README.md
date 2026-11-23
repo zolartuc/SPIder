@@ -6,6 +6,35 @@
 
 Runs happily on a Raspberry Pi 4 (2 GB or more), but works on any Linux, macOS or Windows machine too.
 
+![The SPIder overview in the Bridge theme: a spider-web map of every device, with Pi-hole stats and recent activity](docs/screenshots/bridge-overview.png)
+
+## Screenshots
+
+All screenshots use made-up demo data (see [Try the demo](#try-the-demo)).
+
+| | |
+|---|---|
+| ![Devices page](docs/screenshots/bridge-devices.png) | ![Activity page](docs/screenshots/bridge-activity.png) |
+| **Devices.** Name what you recognise; strangers float to the top. | **Activity.** Everything that happened, day by day. |
+| ![Traffic page](docs/screenshots/bridge-traffic.png) | ![Traffic for one device](docs/screenshots/bridge-traffic-device.png) |
+| **Traffic.** What every device talks to, and the first contacts worth a look. | **One device.** An unidentified smart plug that started calling a new server. |
+| ![Pi-hole page](docs/screenshots/bridge-pihole.png) | ![Network settings](docs/screenshots/bridge-settings-network.png) |
+| **Pi-hole.** Today's blocking, the last 24 hours, and who's asking most. | **Settings.** The Pi's hostname, network, scanning and more. |
+| ![Theme settings](docs/screenshots/bridge-settings.png) | ![User menu](docs/screenshots/bridge-user-menu.png) |
+| **Themes.** Four of them, saved to your account. | **Accounts.** Admins change things; viewers just look. |
+
+<p align="center">
+  <img src="docs/screenshots/bridge-mobile.png" width="260" alt="SPIder on a phone">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/bridge-sign-in.png" width="520" alt="Sign-in page">
+</p>
+
+### The other themes
+
+| Silk | Cyanotype | Amber |
+|---|---|---|
+| ![Silk theme](docs/screenshots/silk-overview.png) | ![Cyanotype theme](docs/screenshots/cyanotype-overview.png) | ![Amber theme](docs/screenshots/amber-overview.png) |
+
 ## Features
 
 ### Watchtower (working now)
@@ -17,8 +46,13 @@ Runs happily on a Raspberry Pi 4 (2 GB or more), but works on any Linux, macOS o
 - Lets you name devices and mark them as known, so strangers stand out
 
 ### Pi-hole stats (working now)
-- Shows queries, blocked count and block percentage from a Pi-hole elsewhere on your network
+- Shows how much was blocked today, where lookups went (blocked, cached, upstream), a 24-hour chart, the most-blocked domains and your busiest devices, using SPIder's own device names
 - Supports Pi-hole **v6** (REST API) and **v5** (api.php)
+
+### Traffic (with a Pi-hole connected)
+- What each **device** talks to: sites, kinds of use (streaming, gaming, smart home, work…) and when it's busy
+- **First contacts:** after a day learning what's normal for a device, SPIder flags any place it contacts for the first time, like a smart plug that suddenly starts calling a new cloud server. Optional phone alerts
+- Ads and trackers are left to Pi-hole. SPIder only looks at lookups Pi-hole allowed, and keeps 30 days of its own history
 
 ### Dashboard
 - A live spider-web map of your network, plus separate pages for Devices, Activity, Pi-hole and Honeypot
@@ -49,6 +83,18 @@ python -m spider
 Then open <http://localhost:8080>.
 
 > On Windows without [Npcap](https://npcap.com), and on Linux without root, SPIder automatically falls back to a ping sweep plus the OS ARP table. It's slower but needs no special permissions. The status line shows which method was used.
+
+## Try the demo
+
+See everything working without a Pi-hole or a real network scan:
+
+```bash
+python scripts/demo/run.py
+```
+
+Open <http://127.0.0.1:8090> and sign in as `demo` / `demo-password` (admin) or `guest` / `guest-password` (viewer). The demo has its own made-up devices, history and a stand-in Pi-hole, keeps its data in `data-demo/` (fresh each run), shows a **Demo** badge, and never scans your network. Your real SPIder is untouched.
+
+To regenerate the README screenshots: `pip install -r requirements-dev.txt`, then `python scripts/screenshots.py` (uses Edge or Chrome).
 
 ## Running on a Raspberry Pi
 

@@ -43,6 +43,37 @@ CREATE TABLE IF NOT EXISTS sessions (
     expires     TEXT NOT NULL
 );
 
+-- Traffic: lookups per device, per site (base domain), per hour.
+-- device_key is the device's MAC when SPIder knows it, otherwise "ip:<address>".
+CREATE TABLE IF NOT EXISTS traffic (
+    device_key  TEXT NOT NULL,
+    site        TEXT NOT NULL,
+    hour        TEXT NOT NULL,
+    count       INTEGER NOT NULL,
+    PRIMARY KEY (device_key, site, hour)
+);
+CREATE INDEX IF NOT EXISTS idx_traffic_hour ON traffic (hour);
+
+-- First time each device was seen talking to each site (kept forever: this is "normal").
+CREATE TABLE IF NOT EXISTS traffic_sites (
+    device_key  TEXT NOT NULL,
+    site        TEXT NOT NULL,
+    first_seen  TEXT NOT NULL,
+    last_seen   TEXT NOT NULL,
+    PRIMARY KEY (device_key, site)
+);
+
+-- When SPIder first saw any traffic from a device (starts its learning period).
+CREATE TABLE IF NOT EXISTS traffic_devices (
+    device_key  TEXT PRIMARY KEY,
+    first_seen  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS meta (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key         TEXT PRIMARY KEY,
     value       TEXT NOT NULL      -- JSON

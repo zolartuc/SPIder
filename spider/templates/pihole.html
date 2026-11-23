@@ -1,11 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="pihole-page">
-  <div id="pihole-big" class="pihole-big muted">Checking your Pi-hole…</div>
+  <div id="pihole-problem" class="pihole-problem" hidden></div>
+
+  <div id="pihole-ok" class="pihole-ok" hidden>
+    <div class="ph-top">
+      <p class="pi-hero" id="ph-hero"></p>
+
+      <div class="breakdown">
+        <h2>Where today's lookups went</h2>
+        <div class="split-bar" id="ph-split" role="img"></div>
+        <ul class="split-legend" id="ph-split-legend"></ul>
+      </div>
+    </div>
+
+    <dl class="stats wide" id="ph-stats"></dl>
+
+    <section class="panel chart-panel">
+      <div class="panel-head">
+        <h2>Last 24 hours</h2>
+        <ul class="chart-legend" id="ph-legend"></ul>
+      </div>
+      <div class="chart" id="ph-chart"></div>
+      <details class="table-view">
+        <summary>Show as a table</summary>
+        <div class="table-wrap"><table id="ph-table"></table></div>
+      </details>
+    </section>
+
+    <div class="ph-lists">
+      <section class="panel">
+        <div class="panel-head"><h2>Most blocked</h2><span class="muted small">today</span></div>
+        <ol class="rank" id="ph-domains"></ol>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Busiest devices</h2><span class="muted small">lookups today</span></div>
+        <ol class="rank" id="ph-clients"></ol>
+      </section>
+    </div>
+  </div>
+
   <p class="muted small">
-    SPIder reads these numbers from the Pi-hole on your network every 30 seconds.
+    SPIder reads these numbers from the Pi-hole on your network every minute.
     {% if user and user.role == "admin" %}Change which Pi-hole in <a href="/settings#pihole">Settings</a>.{% endif %}
   </p>
 </section>
+<div id="tip" class="tip" role="status" hidden></div>
 {% endblock %}
 {% block scripts %}<script src="/static/js/pihole.js"></script>{% endblock %}
