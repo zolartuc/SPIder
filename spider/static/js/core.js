@@ -156,7 +156,7 @@ const SP = (() => {
     const u = v.update, pill = $("update-pill");
     if (!pill) return;
     pill.hidden = !(u && u.available);
-    if (u && u.available) pill.textContent = `Update available: ${u.behind_by} new change${u.behind_by === 1 ? "" : "s"}`;
+    if (u && u.available) pill.textContent = `Update available: ${u.latest}`;
   }
   function renderPop() {
     const v = versionInfo, u = v && v.update, pop = $("update-pop");
@@ -166,8 +166,8 @@ const SP = (() => {
       : isAdmin
         ? `<p class="muted small">${esc(v.cant_update_because || "")} In Portainer, open the spider stack and click <b>Pull and redeploy</b>.</p>`
         : `<p class="muted small">Ask an admin to update SPIder.</p>`;
-    pop.innerHTML = `<h3>${u.behind_by} new change${u.behind_by === 1 ? "" : "s"} on GitHub</h3>
-      <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>
+    pop.innerHTML = `<h3>SPIder ${esc(u.latest_label || u.latest)} is available</h3>
+      <p class="muted small">You're on ${esc(v.label || v.version)}.</p>
       <div class="pop-foot">${how}</div>`;
   }
   $("update-pill")?.addEventListener("click", () => {
@@ -180,10 +180,10 @@ const SP = (() => {
     const pop = $("update-pop");
     if (pop && !pop.hidden && !e.target.closest(".app-foot")) { pop.hidden = true; $("update-pill").setAttribute("aria-expanded", "false"); }
     if (!e.target.closest("#update-now") || updating) return;
-    if (!confirm("Update SPIder now? It restarts while Portainer rebuilds it, usually a few minutes.")) return;
+    if (!confirm(`Update SPIder to ${versionInfo.update.latest} now? It restarts, which takes about a minute.`)) return;
     updating = true;
     const btn = e.target.closest("#update-now"); btn.disabled = true; btn.textContent = "Updating…";
-    const before = versionInfo && versionInfo.commit;
+    const before = versionInfo && `${versionInfo.version} ${versionInfo.commit}`;
     try { await api("/api/version/update", { method: "POST" }); }
     catch (err) { toast(err.message); updating = false; btn.disabled = false; btn.textContent = "Update now"; return; }
     toast("Updating SPIder. This page reloads when it's back.");
@@ -199,7 +199,7 @@ const SP = (() => {
           return;
         }
         if (st.message && st.state !== "idle") btn.textContent = st.message + "…";
-        if (v.commit && v.commit !== before) { clearInterval(poll); location.reload(); }
+        if (`${v.version} ${v.commit}` !== before) { clearInterval(poll); location.reload(); }
       } catch (e2) { btn.textContent = "Restarting…"; }
     }, 3_000);
   });
@@ -223,8 +223,10 @@ const SP = (() => {
     row("v-disk", v.disk_pct != null ? `Storage ${Math.round(v.disk_pct)} % used` : null, v.disk_pct >= 95 ? "bad" : v.disk_pct >= 85 ? "warn" : null);
     box.hidden = false;
   }
+  // Cheap to read (a few small files), so refresh every 3 s, but only while the tab is visible.
   loadVitals();
-  setInterval(loadVitals, 10_000);
+  setInterval(() => { if (!document.hidden) loadVitals(); }, 3_000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadVitals(); });
 
   refreshVersion();
   setInterval(refreshVersion, 10 * 60_000);

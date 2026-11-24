@@ -54,11 +54,11 @@
     <section class="vitals" id="vitals" aria-label="Status" hidden>
       <h2>Status</h2>
       <ul>
-        <li id="v-status"><i class="vdot"></i><span></span></li>
-        <li id="v-temp" hidden><i class="vdot"></i><span></span></li>
-        <li id="v-load" hidden><i class="vdot plain"></i><span></span></li>
-        <li id="v-mem" hidden><i class="vdot plain"></i><span></span></li>
-        <li id="v-disk" hidden><i class="vdot plain"></i><span></span></li>
+        <li id="v-status"><svg class="vicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h4l3-8 4 16 3-8h6"/></svg><span></span></li>
+        <li id="v-temp" hidden><svg class="vicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14.5V5a2 2 0 0 0-4 0v9.5a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg><span></span></li>
+        <li id="v-load" hidden><svg class="vicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.2"/></svg><span></span></li>
+        <li id="v-mem" hidden><svg class="vicon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span></span></li>
+        <li id="v-disk" hidden><svg class="vicon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span></span></li>
       </ul>
     </section>
     {% for key, href, label in nav %}
@@ -73,7 +73,7 @@
   </main>
 
   <footer class="app-foot">
-    <span class="build">SPIder {{ build.version }}{% if build.short %}, build <code>{{ build.short }}</code>{% endif %}</span>
+    <span class="build"{% if build.short %} title="Build {{ build.short }}"{% endif %}>SPIder {{ build.label }}</span>
     <button type="button" class="update-pill" id="update-pill" aria-expanded="false" aria-controls="update-pop" hidden></button>
     <div class="update-pop" id="update-pop" role="dialog" aria-label="Update available" hidden></div>
   </footer>

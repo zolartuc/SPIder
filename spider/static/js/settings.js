@@ -114,9 +114,8 @@
   function renderUpdate(v, u) {
     const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "not yet");
     $("build-info").innerHTML = [
-      ["Version", v.version],
-      ["Build", v.short ? `${v.short}${v.branch ? ` (${v.branch})` : ""}` : "unknown"],
-      ["Latest on GitHub", u && !u.error ? (u.available ? `${u.latest}, ${u.behind_by} newer` : "You're up to date") : "–"],
+      ["Version", v.label || v.version],
+      ["Latest on GitHub", u && !u.error ? (u.latest_label || u.latest || "–") : "–"],
       ["Last checked", when(u && u.checked_at)],
     ].map(([k, x]) => `<div><dt>${esc(k)}</dt><dd>${esc(x)}</dd></div>`).join("");
     const box = $("update-result");
@@ -125,11 +124,9 @@
     const now = $("update-now-settings");
     if (now) now.hidden = !(u.available && v.can_update);
     box.innerHTML = u.available
-      ? `<p class="ph-status ok"><b>${u.behind_by} newer change${u.behind_by === 1 ? "" : "s"} available.</b>${
-          v.can_update ? "" : ` ${esc(v.cant_update_because || "")} In Portainer, open the spider stack and click <b>Pull and redeploy</b>.`}</p>
-         ${u.note ? `<p class="muted small">${esc(u.note)}</p>` : ""}
-         <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>`
-      : `<p class="ph-status ok">You're running the latest build.</p>`;
+      ? `<p class="ph-status ok"><b>SPIder ${esc(u.latest)} is available.</b>${
+          v.can_update ? "" : ` ${esc(v.cant_update_because || "")} In Portainer, open the spider stack and click <b>Pull and redeploy</b>.`}</p>`
+      : `<p class="ph-status ok">You're up to date.</p>`;
   }
   async function loadVersion() {
     try { const v = await api("/api/version"); renderUpdate(v, v.update); } catch (e) {}

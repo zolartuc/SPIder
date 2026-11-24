@@ -103,7 +103,7 @@
         <td class="act">${!isAdmin ? (d.known ? `<span class="dim">Yours</span>` : "")
           : d.known
             ? `<button type="button" class="quiet" data-known="0" data-mac="${esc(d.mac)}">Yours</button>`
-            : `<button type="button" class="claim" data-known="1" data-mac="${esc(d.mac)}">Mark as mine</button>`}</td>
+            : `<button type="button" class="claim" data-known="1" data-mac="${esc(d.mac)}">Mark as known</button>`}</td>
       </tr>`).join("")
       : `<tr><td colspan="9" class="empty">No devices match. Turn the filters off to see everything.</td></tr>`;
 
