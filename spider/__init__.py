@@ -1,7 +1,7 @@
 """SPIder - a Raspberry Pi home network watchtower and honeypot."""
 
 # Bumped by 0.0.1 with every release pushed to GitHub (and tagged vX.Y.Z there).
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __release__ = "Beta"   # "" once SPIder is out of beta
 
 

@@ -211,6 +211,7 @@ button.secondary { background: transparent; color: var(--text); box-shadow: inse
 
 .wordmark { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 23px; letter-spacing: var(--display-track); line-height: 1; }
 .wordmark .pi { color: var(--berry); }
+.brand-sub { display: none; }
 
 [data-theme="cyanotype"] .lg-body { opacity: .28; }
 [data-theme="cyanotype"] .lg-leaves .leaf { opacity: .35; }
@@ -938,8 +939,16 @@ main.auth {
   border-top-left-radius: 56px;
   margin: 12px 0 0 12px; padding: 16px 16px 12px; align-items: flex-end; justify-content: flex-end; gap: 8px;
 }
-[data-theme="bridge"] .brand .logo { width: 30px; height: 30px; }
-[data-theme="bridge"] .wordmark .pi { background: #000; color: var(--c1); border-radius: 999px; padding: 1px 6px 0; margin: 0 1px; }
+/* Name plate: a big wordmark filling the elbow, PI in blue, a small label line beneath. */
+[data-theme="bridge"] .brand {
+  display: grid; grid-template-columns: auto auto; grid-template-areas: "word word" "logo sub";
+  justify-content: end; align-content: end; column-gap: 6px; row-gap: 3px;
+}
+[data-theme="bridge"] .brand .wordmark { grid-area: word; justify-self: end; font-size: 50px; font-weight: 700; line-height: .86; letter-spacing: .01em; }
+[data-theme="bridge"] .brand .logo { grid-area: logo; width: 18px; height: 18px; align-self: center; }
+[data-theme="bridge"] .brand .lg-thread { display: none; }
+[data-theme="bridge"] .brand-sub { grid-area: sub; display: block; font-size: 12px; line-height: 1; letter-spacing: .2em; }
+[data-theme="bridge"] .wordmark .pi { color: var(--c3); -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }
 [data-theme="bridge"] .topbar {
   position: relative; margin-top: 12px; margin-right: 12px;
   padding: 30px 28px 14px 36px;
@@ -988,7 +997,8 @@ main.auth {
   --berry: var(--c1); --berry-deep: #b86a00; --berry-hi: #ffd9a3; --head: var(--c4);
   --leaf: var(--c2); --leaf-deep: #8a5f8a; --logo-legs: var(--c1); --logo-eye: #000;
 }
-[data-theme="bridge"] .auth-mark .wordmark .pi { background: var(--c1); color: #000; }
+[data-theme="bridge"] .auth-mark .wordmark { color: var(--c1); }
+[data-theme="bridge"] .auth-mark .wordmark .pi { color: var(--c3); -webkit-text-stroke: 0; }
 [data-theme="bridge"] .panel { background: transparent; border-radius: 0; border-left: 14px solid var(--c3); padding: 4px 0 4px 18px; }
 [data-theme="bridge"] .set { background: transparent; border-radius: 0; border-left: 14px solid var(--c3); padding: 4px 0 8px 20px; }
 [data-theme="bridge"] .set:nth-of-type(3n+1) { border-left-color: var(--c4); }
@@ -1041,7 +1051,8 @@ main.auth {
   .user-menu summary { padding: 3px; }
 
   [data-theme="bridge"] .frame { grid-template-columns: minmax(0, 1fr); }
-  [data-theme="bridge"] .brand { margin: 8px 8px 0; border-top-left-radius: 32px; justify-content: flex-start; }
+  [data-theme="bridge"] .brand { margin: 8px 8px 0; border-top-left-radius: 32px; justify-content: start; }
+  [data-theme="bridge"] .brand .wordmark { font-size: 38px; }
   [data-theme="bridge"] .topbar { margin: 0 8px; background: none; padding: 12px 8px; }
   [data-theme="bridge"] .topbar::before, [data-theme="bridge"] .topbar::after { display: none; }
   [data-theme="bridge"] .rail { padding: 0 8px 12px; height: auto; }
