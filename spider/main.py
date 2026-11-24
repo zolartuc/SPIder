@@ -150,7 +150,8 @@ def page(request: Request, name: str, title: str, template: str):
         return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
     return templates.TemplateResponse(request, template, {
         "page": name, "title": title, "user": user, "nav": NAV, "version": __version__,
-        "theme": (user or {}).get("theme"), "device_name": settings_store.get("device_name"),
+        "theme": (user or {}).get("theme"), "layout": (user or {}).get("layout"),
+        "device_name": settings_store.get("device_name"),
         "demo": get_settings().demo, "build": version.current(),
     })
 
@@ -249,6 +250,16 @@ def api_me(request: Request):
 
 class ThemeBody(BaseModel):
     theme: Literal["silk", "bridge", "cyanotype", "amber"]
+
+
+class LayoutBody(BaseModel):
+    layout: Literal["full", "boxed"]
+
+
+@app.put("/api/me/layout")
+def api_my_layout(body: LayoutBody, user=Depends(auth.require_user)):
+    auth.set_layout(user["id"], body.layout)
+    return {"ok": True}
 
 
 @app.put("/api/me/theme")

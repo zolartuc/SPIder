@@ -57,7 +57,9 @@ def has_users() -> bool:
 
 
 def public_user(row) -> dict:
-    return {"id": row["id"], "username": row["username"], "role": row["role"], "theme": row["theme"]}
+    keys = row.keys()
+    return {"id": row["id"], "username": row["username"], "role": row["role"], "theme": row["theme"],
+            "layout": row["layout"] if "layout" in keys else None}
 
 
 def list_users() -> list[dict]:
@@ -104,6 +106,11 @@ def change_password(user_id: int, current: str, new: str) -> None:
         conn.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (hash_password(new), user_id))
         # Sign out every other session for this account.
         conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+
+def set_layout(user_id: int, layout: str) -> None:
+    with connect() as conn:
+        conn.execute("UPDATE users SET layout = ? WHERE id = ?", (layout, user_id))
 
 
 def set_theme(user_id: int, theme: str) -> None:

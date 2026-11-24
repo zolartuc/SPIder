@@ -7,6 +7,9 @@
   document.querySelectorAll("[data-theme-choice]").forEach((b) =>
     b.addEventListener("click", () => { setTheme(b.dataset.themeChoice); toast(`Theme set to ${b.querySelector("b").textContent}`); }));
   setTheme(document.documentElement.dataset.theme || "silk", { save: false });
+  document.querySelectorAll("[data-layout-choice]").forEach((b) =>
+    b.addEventListener("click", () => { SP.setLayout(b.dataset.layoutChoice); toast(b.dataset.layoutChoice === "boxed" ? "Boxed layout on" : "Full width layout on"); }));
+  SP.setLayout(document.documentElement.dataset.layout || "full", { save: false });
 
   // ---------- fill forms from saved values
   function fill() {

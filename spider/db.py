@@ -113,6 +113,8 @@ def init_db() -> None:
             conn.execute("ALTER TABLE events ADD COLUMN ack INTEGER NOT NULL DEFAULT 0")
         # Added later: what SPIder thinks each device is, and an admin's correction.
         have = [r[1] for r in conn.execute("PRAGMA table_info(devices)")]
+        if "layout" not in [r[1] for r in conn.execute("PRAGMA table_info(users)")]:
+            conn.execute("ALTER TABLE users ADD COLUMN layout TEXT")
         for col, kind in (("kind", "TEXT"), ("model", "TEXT"), ("confidence", "TEXT"),
                           ("identity", "TEXT"), ("kind_user", "TEXT"), ("identified_at", "TEXT")):
             if col not in have:

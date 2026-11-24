@@ -39,6 +39,17 @@
         </button>
         {% endfor %}
       </div>
+      <h3 class="sub-h">Page width</h3>
+      <div class="layout-grid" role="radiogroup" aria-label="Page width">
+        <button type="button" class="theme-card layout-card" data-layout-choice="full" role="radio" aria-checked="false">
+          <span class="layout-pic full" aria-hidden="true"><i></i><i></i></span>
+          <b>Full width</b><small>Uses the whole screen</small>
+        </button>
+        <button type="button" class="theme-card layout-card" data-layout-choice="boxed" role="radio" aria-checked="false">
+          <span class="layout-pic boxed" aria-hidden="true"><i></i><i></i></span>
+          <b>Boxed</b><small>A centred column, tidier on big screens</small>
+        </button>
+      </div>
     </section>
 
     {% if user %}

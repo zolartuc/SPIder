@@ -87,6 +87,15 @@ const SP = (() => {
   };
 
   // ---------- theme
+  function setLayout(name, { save = true } = {}) {
+    document.documentElement.dataset.layout = name;
+    try { localStorage.setItem("spider-layout", name); } catch (e) {}
+    document.querySelectorAll("[data-layout-choice]").forEach((b) =>
+      b.setAttribute("aria-checked", String(b.dataset.layoutChoice === name)));
+    if (save && signedIn) api("/api/me/layout", { method: "PUT", body: JSON.stringify({ layout: name }) }).catch(() => {});
+    window.dispatchEvent(new Event("resize"));  // charts and the web re-fit
+  }
+
   function setTheme(name, { save = true } = {}) {
     document.documentElement.dataset.theme = name;
     try { localStorage.setItem("spider-theme", name); } catch (e) {}
@@ -189,5 +198,5 @@ const SP = (() => {
   refreshVersion();
   setInterval(refreshVersion, 10 * 60_000);
 
-  return { refreshVersion: () => refreshVersion(), $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
+  return { setLayout, refreshVersion: () => refreshVersion(), $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
 })();
