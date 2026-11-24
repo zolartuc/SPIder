@@ -2,7 +2,7 @@
 FROM python:3.12-slim AS buildinfo
 WORKDIR /src
 COPY . .
-RUN python spider/buildinfo.py .git > /build.json
+RUN python spider/buildinfo.py .git spider > /build.json
 
 # Stage 2: SPIder itself.
 FROM python:3.12-slim

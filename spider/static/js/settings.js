@@ -122,6 +122,7 @@
     box.innerHTML = u.available
       ? `<p class="ph-status ok"><b>${u.behind_by} newer change${u.behind_by === 1 ? "" : "s"} on GitHub.</b> ${
           v.can_update ? "Use <b>Update now</b> at the bottom of the page." : "In Portainer, open the spider stack and click <b>Pull and redeploy</b>, or add the webhook below to update from here."}</p>
+         ${u.note ? `<p class="muted small">${esc(u.note)}</p>` : ""}
          <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>`
       : `<p class="ph-status ok">You're running the latest build.</p>`;
   }
