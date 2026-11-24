@@ -5,7 +5,7 @@
 2. Download that exact commit and fingerprint the download. Any mismatch: stop.
 3. Test-load the new code in a separate Python process. If it won't import: stop.
 4. Install new libraries if requirements.txt changed.
-5. Swap the folders (the old one is kept as spider.previous) and restart.
+5. Copy the new code in (the old is kept as spider.previous) and restart.
    Docker's restart policy brings SPIder straight back on the new code.
 
 Only runs inside Docker (where something restarts us). Data lives in the volume
@@ -66,6 +66,27 @@ def _set(st: str, message: str | None = None) -> None:
         (log.warning if st == "failed" else log.info)("Self-update: %s", message)
 
 
+def _replace_contents(dst: Path, src: Path) -> None:
+    for child in dst.iterdir():
+        shutil.rmtree(child) if child.is_dir() and not child.is_symlink() else child.unlink()
+    shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
+
+
+def _swap(new_pkg: Path) -> None:
+    """Put the new code in place of the old, keeping a copy of the old as spider.previous.
+
+    Copies rather than renames the folder: inside Docker, /app/spider sits in a read-only
+    image layer and the kernel refuses to rename it ("Invalid cross-device link").
+    """
+    shutil.rmtree(PREVIOUS, ignore_errors=True)
+    shutil.copytree(PKG, PREVIOUS, ignore=shutil.ignore_patterns("__pycache__"))
+    try:
+        _replace_contents(PKG, new_pkg)
+    except Exception:
+        _replace_contents(PKG, PREVIOUS)  # put things back exactly as they were
+        raise
+
+
 def _run(repo: str, branch: str, token: str) -> None:
     # 1. what we're updating to
     _set("checking", "Asking GitHub for the latest build")
@@ -123,13 +144,7 @@ def _run(repo: str, branch: str, token: str) -> None:
         # 5. swap and restart
         _set("installing", f"Switching to build {sha[:7]}")
         (new_pkg / "build.json").write_text(json.dumps({"commit": sha, "short": sha[:7], "branch": branch, "tree": expected}))
-        shutil.rmtree(PREVIOUS, ignore_errors=True)
-        os.rename(PKG, PREVIOUS)
-        try:
-            shutil.move(str(new_pkg), str(PKG))
-        except Exception:
-            os.rename(PREVIOUS, PKG)  # put things back exactly as they were
-            raise
+        _swap(new_pkg)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
