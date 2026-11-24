@@ -151,9 +151,10 @@ Give the Pi a **fixed IP address** (a DHCP reservation in your router) so you ca
 
 The footer of every page shows the version and build SPIder is running, and an **Update available** badge when GitHub has newer changes (checked every 6 hours, or from **Settings > Updates > Check for updates**).
 
-- **Private repository:** add a read-only GitHub token in **Settings > Updates** so SPIder can see new changes (the same kind of token as Portainer's).
-- **Update now:** in Portainer, open the stack, turn on **GitOps updates**, choose **Webhook** and copy the link. Paste it into **Settings > Updates > Portainer webhook**, and admins get an **Update now** button that rebuilds SPIder and reloads the page when it's back.
-- Or update by hand: open the stack in Portainer and press **Pull and redeploy**.
+**Update now** (admins) updates SPIder in place: it downloads the newest build from GitHub, checks it against GitHub's fingerprint for that build, test-loads it, installs any new libraries, then swaps it in and restarts. Your data isn't touched, and the previous build is kept as `spider.previous`. It takes about a minute.
+
+- Changes to the Docker setup itself (rare) still need **Pull and redeploy** in Portainer; the update notes will say so.
+- For a private copy of SPIder, add a read-only GitHub token under **Settings > Updates > Advanced**. If SPIder can't update itself, a Portainer webhook there lets **Update now** ask Portainer to redeploy instead.
 
 ## Configuration
 

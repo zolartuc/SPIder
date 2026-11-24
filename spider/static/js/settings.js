@@ -122,9 +122,11 @@
     const box = $("update-result");
     if (!u) { box.innerHTML = ""; return; }
     if (u.error) { box.innerHTML = `<p class="ph-status bad">${esc(u.error)}</p>`; return; }
+    const now = $("update-now-settings");
+    if (now) now.hidden = !(u.available && v.can_update);
     box.innerHTML = u.available
-      ? `<p class="ph-status ok"><b>${u.behind_by} newer change${u.behind_by === 1 ? "" : "s"} on GitHub.</b> ${
-          v.can_update ? "Use <b>Update now</b> at the bottom of the page." : "In Portainer, open the spider stack and click <b>Pull and redeploy</b>, or add the webhook below to update from here."}</p>
+      ? `<p class="ph-status ok"><b>${u.behind_by} newer change${u.behind_by === 1 ? "" : "s"} available.</b>${
+          v.can_update ? "" : ` ${esc(v.cant_update_because || "")} In Portainer, open the spider stack and click <b>Pull and redeploy</b>.`}</p>
          ${u.note ? `<p class="muted small">${esc(u.note)}</p>` : ""}
          <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>`
       : `<p class="ph-status ok">You're running the latest build.</p>`;
@@ -132,6 +134,13 @@
   async function loadVersion() {
     try { const v = await api("/api/version"); renderUpdate(v, v.update); } catch (e) {}
   }
+  $("update-now-settings")?.addEventListener("click", () => {
+    // Same flow as the footer's button: open the pop-up's Update now.
+    const pill = $("update-pill");
+    if (pill && $("update-pop").hidden) pill.click();
+    setTimeout(() => $("update-now")?.click(), 50);
+  });
+
   $("update-check")?.addEventListener("click", async () => {
     const b = $("update-check"); b.disabled = true; b.textContent = "Checking…";
     try { const u = await api("/api/version/check", { method: "POST" }); const v = await api("/api/version"); renderUpdate(v, u); SP.refreshVersion?.(); }

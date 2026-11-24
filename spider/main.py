@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 
-from . import __version__, alerts, auth, blocking, settings_store, system, version
+from . import __version__, alerts, auth, blocking, selfupdate, settings_store, system, version
 from .config import get_settings
 from .db import connect, init_db
 from .pihole import client as pihole
@@ -449,8 +449,11 @@ async def unblock_device(mac: str, admin=Depends(auth.require_admin)):
 
 @app.get("/api/version")
 def version_info(_=Depends(viewer)):
-    return {**version.current(), "update": version.cached(),
-            "can_update": bool(settings_store.get("portainer_webhook"))}
+    can_self, why = selfupdate.possible()
+    return {**version.current(), "update": version.cached(), "updating": selfupdate.state,
+            "can_update": can_self or bool(settings_store.get("portainer_webhook")),
+            "update_method": "self" if can_self else ("portainer" if settings_store.get("portainer_webhook") else None),
+            "cant_update_because": None if can_self else why}
 
 
 @app.post("/api/version/check")
@@ -460,12 +463,17 @@ async def version_check(_=Depends(auth.require_admin)):
 
 @app.post("/api/version/update")
 async def version_update(admin=Depends(auth.require_admin)):
+    can_self, why = selfupdate.possible()
     try:
+        if can_self:
+            selfupdate.start()
+            log.info("Self-update started by %s", admin["username"])
+            return {"ok": True, "method": "self"}
         await asyncio.to_thread(version.trigger_portainer)
     except RuntimeError as exc:
-        raise HTTPException(502, str(exc))
+        raise HTTPException(409 if can_self else 502, str(exc))
     log.info("Update requested by %s through Portainer", admin["username"])
-    return {"ok": True}
+    return {"ok": True, "method": "portainer"}
 
 
 @app.post("/api/devices/{mac}/identify")

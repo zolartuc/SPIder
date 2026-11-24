@@ -63,7 +63,7 @@ def _headers(token: str) -> dict:
 
 def _github_error(r: httpx.Response, token: str) -> str | None:
     if r.status_code == 404:
-        return ("GitHub can't see the repository. If it's private, add a read-only GitHub token in Settings, Updates."
+        return ("GitHub can't see the repository. If it's private, add a read-only GitHub token under Settings, Updates, Advanced."
                 if not token else "GitHub couldn't find the repository or this build. Check the repository name and token.")
     if r.status_code in (401, 403):
         return ("GitHub refused the token (expired, or missing Contents: Read-only)." if token

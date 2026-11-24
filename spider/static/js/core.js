@@ -162,9 +162,9 @@ const SP = (() => {
     const v = versionInfo, u = v && v.update, pop = $("update-pop");
     if (!u) return;
     const how = isAdmin && v.can_update
-      ? `<button type="button" id="update-now">Update now</button><span class="muted small">SPIder rebuilds through Portainer and is back in a few minutes.</span>`
+      ? `<button type="button" id="update-now">Update now</button><span class="muted small">Takes about a minute. SPIder restarts and this page reloads.</span>`
       : isAdmin
-        ? `<p class="muted small">In Portainer, open the spider stack and click <b>Pull and redeploy</b>. To update from here instead, add your Portainer webhook in <a href="/settings#updates">Settings, Updates</a>.</p>`
+        ? `<p class="muted small">${esc(v.cant_update_because || "")} In Portainer, open the spider stack and click <b>Pull and redeploy</b>.</p>`
         : `<p class="muted small">Ask an admin to update SPIder.</p>`;
     pop.innerHTML = `<h3>${u.behind_by} new change${u.behind_by === 1 ? "" : "s"} on GitHub</h3>
       <ol class="changes">${u.changes.map((c) => `<li><code>${esc(c.short)}</code> ${esc(c.title)}</li>`).join("")}</ol>
@@ -186,14 +186,22 @@ const SP = (() => {
     const before = versionInfo && versionInfo.commit;
     try { await api("/api/version/update", { method: "POST" }); }
     catch (err) { toast(err.message); updating = false; btn.disabled = false; btn.textContent = "Update now"; return; }
-    toast("Portainer is rebuilding SPIder. This page reloads when it's back.");
-    // Wait for the new build to answer, then reload.
+    toast("Updating SPIder. This page reloads when it's back.");
+    // Follow progress, then reload once the new build answers.
     const poll = setInterval(async () => {
       try {
         const v = await api("/api/version");
+        const st = v.updating || {};
+        if (st.state === "failed") {
+          clearInterval(poll); updating = false;
+          btn.disabled = false; btn.textContent = "Update now";
+          toast(st.message || "The update didn't work. Nothing was changed.");
+          return;
+        }
+        if (st.message && st.state !== "idle") btn.textContent = st.message + "…";
         if (v.commit && v.commit !== before) { clearInterval(poll); location.reload(); }
-      } catch (e2) { /* restarting */ }
-    }, 10_000);
+      } catch (e2) { btn.textContent = "Restarting…"; }
+    }, 3_000);
   });
   // ---------- status panel under the logo (like Pi-hole's)
   async function loadVitals() {
