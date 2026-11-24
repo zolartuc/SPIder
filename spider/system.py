@@ -30,6 +30,7 @@ def _read(path: str) -> str | None:
 
 
 DEMO_INFO = {
+    "disk_free": 21_400_000_000, "disk_total": 31_100_000_000, "disk_low": False,
     "hostname": "spider",
     "ip": "192.168.1.10",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
@@ -61,7 +62,17 @@ def info() -> dict:
         "cpu_temp_c": round(int(temp_raw) / 1000, 1) if temp_raw and temp_raw.isdigit() else None,
         "uptime_s": int(float(uptime_raw.split()[0])) if uptime_raw else int(time.time() - _BOOT),
         "can_apply": can_apply(),
+        **storage(),
     }
+
+
+def storage() -> dict:
+    """Free space where SPIder keeps its data (on a Pi in Docker, that's the Pi's own storage)."""
+    try:
+        u = shutil.disk_usage(get_settings().data_dir)
+    except OSError:
+        return {}
+    return {"disk_free": u.free, "disk_total": u.total, "disk_low": u.free < 1_000_000_000 or u.free / u.total < 0.05}
 
 
 def can_apply() -> bool:

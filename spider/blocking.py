@@ -108,10 +108,13 @@ def _raise_for(res: dict) -> None:
     status = res.get("status")
     if status == "ok":
         return
+    detail = res.get("error") or ""
     messages = {
         "not_configured": "Connect a Pi-hole in Settings to pause devices.",
-        "offline": "SPIder can't reach your Pi-hole right now. Nothing was changed.",
-        "auth_failed": "Your Pi-hole turned down SPIder's password. Nothing was changed.",
+        "offline": f"SPIder can't reach your Pi-hole. {detail} Nothing was changed.",
+        "auth_failed": f"Your Pi-hole turned down SPIder's password. {detail} Nothing was changed.",
+        "refused": f"{detail} Nothing was changed.",
         "not_supported": "Pausing devices needs Pi-hole v6.",
     }
-    raise HTTPException(502 if status in ("offline", "unsafe") else 409, messages.get(status) or res.get("error") or "Pi-hole said no.")
+    msg = messages.get(status) or detail or "Pi-hole said no."
+    raise HTTPException(502 if status in ("offline", "unsafe") else 409, " ".join(msg.split()))

@@ -25,6 +25,24 @@ class AuthFailed(Exception):
     """Pi-hole refused the password. The message, if any, is Pi-hole's own reason."""
 
 
+class Refused(Exception):
+    """Pi-hole answered but refused the request. Carries Pi-hole's own error key, message and hint."""
+
+    def __init__(self, status: int, key: str = "", message: str = "", hint: str = ""):
+        super().__init__(message or key or f"HTTP {status}")
+        self.status, self.key, self.message, self.hint = status, key, message, hint
+
+
+def _refused(r: httpx.Response) -> Refused:
+    err = {}
+    try:
+        body = r.json()
+        err = body.get("error") if isinstance(body, dict) and isinstance(body.get("error"), dict) else {}
+    except ValueError:
+        pass
+    return Refused(r.status_code, str(err.get("key") or ""), str(err.get("message") or ""), str(err.get("hint") or ""))
+
+
 def reset() -> None:
     """Forget the cached session (call when the URL or password changes)."""
     global _sid
@@ -76,9 +94,26 @@ def _call(fn, timeout: float = 5) -> dict:
             return fn(client, s.pihole_url.rstrip("/"), s.pihole_password)
     except AuthFailed as exc:
         return {"status": "auth_failed", "error": str(exc) or "Pi-hole said the password is wrong."}
+    except Refused as exc:
+        log.warning("Pi-hole refused a request: HTTP %s %s %s", exc.status, exc.key, exc.message)
+        return {"status": "refused", "error": explain_refusal(exc)}
     except Exception as exc:  # anything else: explain it in plain words
         log.debug("Pi-hole problem: %r", exc)
         return {"status": "offline", "error": explain(exc, s.pihole_url)}
+
+
+def explain_refusal(exc: "Refused") -> str:
+    text = f"{exc.key} {exc.message} {exc.hint}".lower()
+    if "disk is full" in text or "disk full" in text or "no space" in text:
+        return ("Pi-hole couldn't save the change because its storage is full (“database or disk is full”). "
+                "Free up space on the Pi that runs Pi-hole, then try again.")
+    if exc.status == 403 or "app" in text and ("sudo" in text or "password" in text) or "read-only" in text or "forbidden" in text:
+        return ("Pi-hole won't let SPIder make changes with an app password. In Pi-hole, go to Settings, "
+                "All settings, Webserver and API, tick \u201cwebserver.api.app_sudo\u201d and save. "
+                "Or give SPIder Pi-hole's main password instead.")
+    detail = exc.message or exc.key or "no reason given"
+    hint = f" {exc.hint}" if exc.hint else ""
+    return f"Pi-hole refused the change (HTTP {exc.status}): {detail}.{hint}"
 
 
 def explain(exc: Exception, url: str) -> str:
@@ -275,7 +310,8 @@ def _v6_send(client: httpx.Client, base: str, password: str, method: str, path: 
         r = go()
     if r.status_code == 404:
         return None
-    r.raise_for_status()
+    if r.status_code >= 400:
+        raise _refused(r)
     return r.json() if r.content else {}
 
 

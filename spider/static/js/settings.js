@@ -38,8 +38,12 @@
       ["Address", s.ip],
       ["Running for", d ? `${d} d ${h} h` : `${h} h ${m} min`],
       s.cpu_temp_c != null ? ["CPU temperature", `${s.cpu_temp_c} °C`] : null,
+      s.disk_total ? ["Storage free", `${(s.disk_free / 1e9).toFixed(1)} GB of ${(s.disk_total / 1e9).toFixed(0)} GB${s.disk_low ? " (running low)" : ""}`] : null,
     ].filter(Boolean);
     $("sysinfo").innerHTML = rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("");
+    if (s.disk_low) {
+      $("sysinfo").insertAdjacentHTML("afterend", `<p class="ph-status bad" id="disk-warn"><b>Storage is nearly full.</b> Pi-hole, Docker and SPIder can fail to save changes. Free some space, for example with <code>docker image prune -f && docker builder prune -f</code> on the Pi.</p>`);
+    } else { $("disk-warn")?.remove(); }
   }
 
   async function load() {
