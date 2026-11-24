@@ -7,6 +7,7 @@ Commands are always built as argument lists (never through a shell), from
 values that have already been validated.
 """
 
+import os
 import platform
 import shlex
 import shutil
@@ -64,6 +65,38 @@ def info() -> dict:
         "can_apply": can_apply(),
         **storage(),
     }
+
+
+def _memory_percent() -> float | None:
+    try:
+        info = {}
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            k, v = line.split(":", 1)
+            info[k] = int(v.split()[0])
+        total, avail = info["MemTotal"], info.get("MemAvailable", info.get("MemFree", 0))
+        return round((total - avail) / total * 100, 1)
+    except (OSError, KeyError, ValueError, ZeroDivisionError):
+        return None
+
+
+def vitals() -> dict:
+    """Live readings for the status panel: temperature, load, memory, storage."""
+    if get_settings().demo:
+        return {"temp_c": 47.8, "load": [0.42, 0.51, 0.47], "memory_pct": 31.6, "disk_pct": 31.2}
+    out: dict = {}
+    temp_raw = _read("/sys/class/thermal/thermal_zone0/temp")
+    if temp_raw and temp_raw.lstrip("-").isdigit():
+        out["temp_c"] = round(int(temp_raw) / 1000, 1)
+    try:
+        out["load"] = [round(x, 2) for x in os.getloadavg()]
+    except (OSError, AttributeError):  # not on Windows
+        pass
+    if (mem := _memory_percent()) is not None:
+        out["memory_pct"] = mem
+    s = storage()
+    if s.get("disk_total"):
+        out["disk_pct"] = round((s["disk_total"] - s["disk_free"]) / s["disk_total"] * 100, 1)
+    return out
 
 
 def storage() -> dict:

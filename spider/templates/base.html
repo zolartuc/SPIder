@@ -51,6 +51,16 @@
   </header>
 
   <nav class="rail" aria-label="Sections">
+    <section class="vitals" id="vitals" aria-label="Status" hidden>
+      <h2>Status</h2>
+      <ul>
+        <li id="v-status"><i class="vdot"></i><span></span></li>
+        <li id="v-temp" hidden><i class="vdot"></i><span></span></li>
+        <li id="v-load" hidden><i class="vdot plain"></i><span></span></li>
+        <li id="v-mem" hidden><i class="vdot plain"></i><span></span></li>
+        <li id="v-disk" hidden><i class="vdot plain"></i><span></span></li>
+      </ul>
+    </section>
     {% for key, href, label in nav %}
     <a href="{{ href }}" {% if page == key %}aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}

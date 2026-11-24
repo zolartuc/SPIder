@@ -195,6 +195,29 @@ const SP = (() => {
       } catch (e2) { /* restarting */ }
     }, 10_000);
   });
+  // ---------- status panel under the logo (like Pi-hole's)
+  async function loadVitals() {
+    const box = $("vitals");
+    if (!box) return;
+    let v;
+    try { v = await api("/api/vitals"); } catch (e) { return; }
+    const row = (id, text, level) => {
+      const li = $(id); if (!li) return;
+      li.hidden = text == null;
+      if (text == null) return;
+      li.querySelector("span").textContent = text;
+      if (level) li.dataset.level = level;
+    };
+    row("v-status", v.status_text, v.status);
+    row("v-temp", v.temp_c != null ? `Temp ${v.temp_c.toFixed(1)} \u00b0C` : null, v.temp_level === "hot" ? "bad" : v.temp_level === "warm" ? "warn" : "ok");
+    row("v-load", v.load ? `Load ${v.load.map((x) => x.toFixed(2)).join("/")}` : null);
+    row("v-mem", v.memory_pct != null ? `Memory ${v.memory_pct.toFixed(1)} %` : null, v.memory_pct >= 90 ? "warn" : null);
+    row("v-disk", v.disk_pct != null ? `Storage ${Math.round(v.disk_pct)} % used` : null, v.disk_pct >= 95 ? "bad" : v.disk_pct >= 85 ? "warn" : null);
+    box.hidden = false;
+  }
+  loadVitals();
+  setInterval(loadVitals, 10_000);
+
   refreshVersion();
   setInterval(refreshVersion, 10 * 60_000);
 

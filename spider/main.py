@@ -328,6 +328,25 @@ def api_update_settings(changes: dict, _=Depends(auth.require_admin)):
     return {"changed": sorted(changed), "values": settings_store.public(), "apply": system.apply(new, changed)}
 
 
+@app.get("/api/vitals")
+def api_vitals(_=Depends(viewer)):
+    """Status panel: is SPIder watching, plus the Pi's temperature, load, memory and storage."""
+    from datetime import datetime, timezone
+    last = watchtower.last_scan
+    interval = settings_store.get("scan_interval")
+    if last.get("error"):
+        status, text = "bad", "Scan failed"
+    elif not last.get("at"):
+        status, text = "wait", "Starting"
+    else:
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(last["at"])).total_seconds()
+        status, text = ("ok", "Watching") if age < interval * 2 + 120 else ("bad", "Scans stopped")
+    v = system.vitals()
+    t = v.get("temp_c")
+    v["temp_level"] = None if t is None else "hot" if t >= 75 else "warm" if t >= 60 else "ok"
+    return {"status": status, "status_text": text, **v}
+
+
 @app.get("/api/system")
 def api_system(_=Depends(viewer)):
     return system.info()
