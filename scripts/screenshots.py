@@ -80,7 +80,7 @@ def signed_in(browser, theme: str, motion: bool = False, **ctx):
 
 def snap(page, path: str, name: str, settle: float = 1.2, before=None) -> None:
     page.goto(BASE + path, wait_until="networkidle")
-    page.add_style_tag(content=".demo-badge, .demo-hint { display: none !important; }")
+    page.add_style_tag(content=".demo-badge, .demo-hint, .update-pill { display: none !important; }")
     page.wait_for_timeout(int(settle * 1000))
     if before:
         before(page)
