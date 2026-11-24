@@ -1049,3 +1049,48 @@ main.auth {
   [data-theme="bridge"] .rail a.rail-settings { border-radius: 0 999px 999px 0; padding-bottom: 4px; }
   [data-theme="bridge"] main { padding: 8px 16px 40px; }
 }
+
+/* ---------- Update progress: the web is spun one ring per step */
+.update-stage {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px);
+  animation: us-in .25s ease-out;
+}
+@keyframes us-in { from { opacity: 0; } }
+.us-card { width: min(440px, 100%); text-align: center; display: grid; justify-items: center; gap: 6px; }
+.us-web { width: min(300px, 72vw); height: auto; overflow: visible; margin-bottom: 10px; }
+.us-spoke { stroke: var(--thread); stroke-opacity: calc(var(--thread-alpha) * .7); stroke-width: .8; }
+.us-ghost { fill: none; stroke: var(--thread); stroke-opacity: .14; stroke-width: 1; stroke-dasharray: 1.5 3; }
+.us-ring { fill: none; stroke: var(--live); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset .6s ease, stroke .4s; }
+.us-ring.done { stroke-dashoffset: 0; }
+.us-ring.active:not(.measured) { animation: us-spin 1.8s ease-in-out infinite; }
+.us-ring.active { stroke: var(--stranger); }
+@keyframes us-spin { 0% { stroke-dashoffset: 100; } 70%, 100% { stroke-dashoffset: 0; } }
+.us-spider { transition: transform .8s cubic-bezier(.5, 0, .3, 1.3); }
+.update-stage.waiting .us-web { animation: us-beat 1.4s ease-in-out infinite; }
+@keyframes us-beat { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.035); } 24% { transform: scale(1); } 36% { transform: scale(1.02); } }
+.update-stage.ready .us-ring { stroke: var(--live); filter: drop-shadow(0 0 3px var(--live)); }
+.update-stage.ready .us-spider { animation: us-hop .6s ease-out; }
+@keyframes us-hop { 40% { transform: translateY(-8px); } }
+.update-stage.failed .us-ring.done, .update-stage.failed .us-ring.active { stroke: var(--danger); animation: none; stroke-dashoffset: 0; opacity: .55; }
+.update-stage.failed .us-spider { opacity: .5; }
+.us-title { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); font-size: 24px; }
+.us-step { margin: 0; color: var(--text); min-height: 1.4em; }
+.us-meta { display: flex; gap: 14px; color: var(--muted); font-family: var(--font-data); font-size: 12px; min-height: 1.3em; }
+.us-detail:empty { display: none; }
+.us-note { margin: 8px 0 0; max-width: 36ch; }
+.us-foot { margin-top: 10px; }
+.us-foot[hidden], .us-note[hidden] { display: none; }
+[data-theme="bridge"] .update-stage { background: rgba(0, 0, 0, .92); }
+[data-theme="bridge"] .us-title { color: var(--c1); text-transform: uppercase; letter-spacing: .06em; }
+[data-theme="bridge"] .us-step { text-transform: uppercase; letter-spacing: .05em; color: var(--c3); }
+[data-theme="bridge"] .us-ring.done { stroke: var(--c2); }
+[data-theme="bridge"] .us-ring.active { stroke: var(--c1); }
+[data-theme="amber"] .us-ring, [data-theme="amber"] .us-ghost { stroke-linecap: square; }
+[data-theme="amber"] .us-ring.active { stroke: #fff3d6; }
+[data-theme="cyanotype"] .update-stage { background: color-mix(in srgb, var(--bg) 92%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .update-stage, .us-ring.active:not(.measured), .update-stage.waiting .us-web, .update-stage.ready .us-spider { animation: none; }
+  .us-ring.active:not(.measured) { stroke-dashoffset: 40; }
+  .us-spider, .us-ring { transition: none; }
+}

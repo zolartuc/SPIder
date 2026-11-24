@@ -182,27 +182,126 @@ const SP = (() => {
     if (!e.target.closest("#update-now") || updating) return;
     if (!confirm(`Update SPIder to ${versionInfo.update.latest} now? It restarts, which takes about a minute.`)) return;
     updating = true;
-    const btn = e.target.closest("#update-now"); btn.disabled = true; btn.textContent = "Updating…";
+    const btn = e.target.closest("#update-now"); btn.disabled = true;
     const before = versionInfo && `${versionInfo.version} ${versionInfo.commit}`;
     try { await api("/api/version/update", { method: "POST" }); }
-    catch (err) { toast(err.message); updating = false; btn.disabled = false; btn.textContent = "Update now"; return; }
-    toast("Updating SPIder. This page reloads when it's back.");
-    // Follow progress, then reload once the new build answers.
-    const poll = setInterval(async () => {
-      try {
-        const v = await api("/api/version");
-        const st = v.updating || {};
-        if (st.state === "failed") {
-          clearInterval(poll); updating = false;
-          btn.disabled = false; btn.textContent = "Update now";
-          toast(st.message || "The update didn't work. Nothing was changed.");
-          return;
-        }
-        if (st.message && st.state !== "idle") btn.textContent = st.message + "…";
-        if (`${v.version} ${v.commit}` !== before) { clearInterval(poll); location.reload(); }
-      } catch (e2) { btn.textContent = "Restarting…"; }
-    }, 3_000);
+    catch (err) { toast(err.message); updating = false; btn.disabled = false; return; }
+    $("update-pop").hidden = true;
+    updateStage(before, versionInfo.update.latest_label || versionInfo.update.latest);
   });
+
+  // ---------- update progress: the spider spins one ring of its web per step
+  const STEP_NAMES = ["Checking", "Downloading", "Verifying", "Testing", "Libraries", "Switching over", "Restarting"];
+  function webSvg(rings) {
+    const spokes = 8, pt = (r, k) => {
+      const a = (k / spokes) * 2 * Math.PI - Math.PI / 2;
+      return [+(r * Math.cos(a)).toFixed(2), +(r * Math.sin(a)).toFixed(2)];
+    };
+    const radii = Array.from({ length: rings }, (_, i) => 22 + i * 12);
+    const spokeLines = Array.from({ length: spokes }, (_, k) => {
+      const [x, y] = pt(104, k);
+      return `<line class="us-spoke" x1="0" y1="0" x2="${x}" y2="${y}"/>`;
+    }).join("");
+    // Each ring starts at the top spoke and runs clockwise, sagging a little between spokes.
+    const ringPaths = radii.map((r, i) => {
+      let d = `M${pt(r, 0).join(" ")}`;
+      for (let k = 1; k <= spokes; k++) {
+        const [cx, cy] = pt(r * 0.8, k - 0.5), [x, y] = pt(r, k);
+        d += `Q${cx} ${cy} ${x} ${y}`;
+      }
+      return `<path class="us-ghost" d="${d}"/><path class="us-ring" data-ring="${i}" pathLength="100" d="${d}"/>`;
+    }).join("");
+    return { svg: `<svg class="us-web" viewBox="-112 -112 224 224" aria-hidden="true">${spokeLines}${ringPaths}<g class="us-spider"></g></svg>`, radii };
+  }
+  function updateStage(before, to) {
+    const { svg, radii } = webSvg(STEP_NAMES.length);
+    const stage = document.createElement("div");
+    stage.className = "update-stage";
+    stage.setAttribute("role", "dialog"); stage.setAttribute("aria-modal", "true"); stage.setAttribute("aria-label", "Updating SPIder");
+    stage.innerHTML = `<div class="us-card">
+        ${svg}
+        <h2 class="us-title">Updating to SPIder ${esc(to || "")}</h2>
+        <p class="us-step" aria-live="polite"></p>
+        <div class="us-meta"><span class="us-detail"></span><span class="us-time">0:00</span></div>
+        <p class="us-note muted small">Keep this page open. SPIder restarts by itself and this page reloads when it's back.</p>
+        <div class="us-foot" hidden><button type="button" class="us-close">Close</button></div>
+      </div>`;
+    document.body.appendChild(stage);
+    // The spider: a copy of the logo, without its own thread.
+    const logo = document.querySelector(".brand svg.logo");
+    if (logo) {
+      const spider = logo.cloneNode(true);
+      spider.removeAttribute("class");
+      spider.querySelector(".lg-thread")?.remove();
+      spider.setAttribute("x", "-15"); spider.setAttribute("y", "-15"); spider.setAttribute("width", "30"); spider.setAttribute("height", "30");
+      stage.querySelector(".us-spider").appendChild(spider);
+    }
+    const q = (sel) => stage.querySelector(sel);
+    const rings = [...stage.querySelectorAll(".us-ring")];
+    const kb = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
+    const t0 = Date.now();
+    let step = -1, finished = false, downSince = null;
+
+    const show = (i, st = {}) => {
+      step = Math.max(step, i);
+      rings.forEach((r, k) => {
+        r.classList.toggle("done", k < step);
+        r.classList.toggle("active", k === step);
+        r.style.strokeDashoffset = "";
+      });
+      q(".us-spider").style.transform = `translateY(${-radii[Math.min(step, radii.length - 1)]}px)`;
+      q(".us-step").textContent = `Step ${step + 1} of ${STEP_NAMES.length}: ${st.message || STEP_NAMES[step]}`;
+      let detail = "";
+      if (step === 1 && st.bytes) {
+        detail = st.total ? `${kb(st.bytes)} of ${kb(st.total)}` : `${kb(st.bytes)} so far`;
+        if (st.total) {  // draw this ring exactly as far as the download has got
+          const r = rings[1]; r.classList.add("measured");
+          r.style.strokeDashoffset = String(100 - (100 * st.bytes) / st.total);
+        }
+      }
+      q(".us-detail").textContent = detail;
+      stage.classList.toggle("waiting", step === STEP_NAMES.length - 1);
+    };
+    const finish = (ok, title, line, reload) => {
+      finished = true; clearInterval(poll); clearInterval(clock);
+      stage.classList.remove("waiting");
+      stage.classList.add(ok ? "ready" : "failed");
+      if (ok) { rings.forEach((r) => { r.classList.remove("active"); r.classList.add("done"); r.style.strokeDashoffset = ""; }); q(".us-spider").style.transform = ""; }
+      q(".us-title").textContent = title;
+      q(".us-step").textContent = line;
+      q(".us-detail").textContent = "";
+      q(".us-note").hidden = true;
+      if (reload) setTimeout(() => location.reload(), 2200);
+      else { q(".us-foot").hidden = false; q(".us-close").focus(); }
+    };
+    q(".us-close").addEventListener("click", () => { stage.remove(); updating = false; refreshVersion(); });
+    const clock = setInterval(() => {
+      const s2 = Math.round((Date.now() - t0) / 1000);
+      q(".us-time").textContent = `${Math.floor(s2 / 60)}:${String(s2 % 60).padStart(2, "0")}`;
+    }, 1000);
+    show(0);
+    const poll = setInterval(async () => {
+      if (finished) return;
+      let v;
+      try { v = await api("/api/version"); }
+      catch (e) {  // SPIder is restarting
+        downSince ??= Date.now();
+        show(STEP_NAMES.length - 1, { message: "Restarting, waiting for SPIder to answer" });
+        if (Date.now() - downSince > 180_000) q(".us-note").textContent = "This is taking longer than usual. If SPIder doesn't come back, check the stack in Portainer.";
+        return;
+      }
+      const st = v.updating || {};
+      if (`${v.version} ${v.commit}` !== before && !st.demo) {
+        finish(true, `SPIder ${v.label || v.version} is ready`, "Reloading…", true);
+      } else if (st.state === "failed") {
+        finish(false, "The update didn't finish", `${st.message || "Something went wrong."} SPIder is still on ${versionInfo.label || versionInfo.version}.`, false);
+      } else if (st.state === "done") {
+        finish(true, `SPIder ${to} is ready`, st.message || "", false);
+      } else if (st.step != null) {
+        show(st.step, st);
+      }
+    }, 1000);
+  }
   // ---------- status panel under the logo (like Pi-hole's)
   async function loadVitals() {
     const box = $("vitals");

@@ -153,7 +153,7 @@ The footer of every page shows the version SPIder is running (for example `SPIde
 
 Versions go up by 0.0.1 with every release pushed here, and each release is tagged (`v1.0.0`, `v1.0.1`, ...).
 
-**Update now** (admins) updates SPIder in place: it downloads the newest build from GitHub, checks it against GitHub's fingerprint for that build, test-loads it, installs any new libraries, then swaps it in and restarts. Your data isn't touched, and the previous build is kept as `spider.previous`. It takes about a minute.
+**Update now** (admins) updates SPIder in place: it downloads the newest build from GitHub, checks it against GitHub's fingerprint for that build, test-loads it, installs any new libraries, then swaps it in and restarts. Your data isn't touched, and the previous build is kept as `spider.previous`. It takes about a minute. While it runs, SPIder spins a web on screen, one ring per step, and reloads the page once it's back. In demo mode, Update now runs a pretend update so you can see it, and changes nothing.
 
 - Changes to the Docker setup itself (rare) still need **Pull and redeploy** in Portainer.
 - For a private copy of SPIder, add a read-only GitHub token under **Settings > Updates > Advanced**. If SPIder can't update itself, a Portainer webhook there lets **Update now** ask Portainer to redeploy instead.

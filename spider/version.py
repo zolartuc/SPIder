@@ -15,6 +15,7 @@ import httpx
 
 from . import __version__, display_version, settings_store
 from .buildinfo import from_git, tree_hash
+from .config import get_settings
 
 log = logging.getLogger("spider.version")
 
@@ -94,7 +95,10 @@ def check(force: bool = False) -> dict:
     branch = current().get("branch") or "main"
     result = {"available": False, "latest": None, "latest_label": None, "error": None,
               "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))}
-    if not s.update_repo:
+    if get_settings().demo:
+        nxt = ".".join(str(n) for n in (*_parse(__version__)[:2], _parse(__version__)[2] + 1))
+        result.update(available=True, latest=nxt, latest_label=display_version(nxt))
+    elif not s.update_repo:
         result["error"] = "No repository set for update checks."
     else:
         try:

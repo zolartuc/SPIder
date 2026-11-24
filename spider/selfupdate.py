@@ -37,14 +37,17 @@ PKG = Path(__file__).parent          # /app/spider
 APP = PKG.parent                      # /app
 PREVIOUS = APP / "spider.previous"
 
-state: dict = {"state": "idle", "message": None, "started": None}
+# The steps the progress screen draws, one ring of the web each.
+STEPS = ["checking", "downloading", "verifying", "testing", "libraries", "switching", "restarting"]
+state: dict = {"state": "idle", "step": None, "steps": len(STEPS), "message": None, "started": None,
+               "to": None, "bytes": 0, "total": None, "demo": False}
 _lock = threading.Lock()
 
 
 def possible() -> tuple[bool, str | None]:
     """Can SPIder update itself here? (reason if not)"""
     if get_settings().demo:
-        return False, "Updates are switched off in demo mode."
+        return True, None  # demo: a pretend update, nothing is changed
     if not Path("/.dockerenv").exists():
         return False, "SPIder isn't running in Docker here, so update it the way you installed it."
     if not os.access(APP, os.W_OK):
@@ -62,6 +65,8 @@ def _github(path: str, token: str, **kw) -> httpx.Response:
 
 def _set(st: str, message: str | None = None) -> None:
     state.update(state=st, message=message)
+    if st in STEPS:
+        state["step"] = STEPS.index(st)
     if message:
         (log.warning if st == "failed" else log.info)("Self-update: %s", message)
 
@@ -89,7 +94,7 @@ def _swap(new_pkg: Path) -> None:
 
 def _run(repo: str, branch: str, token: str) -> None:
     # 1. what we're updating to
-    _set("checking", "Asking GitHub for the latest build")
+    _set("checking", "Asking GitHub for the latest version")
     r = _github(f"/repos/{repo}/commits/{branch}", token)
     r.raise_for_status()
     head = r.json()
@@ -101,12 +106,12 @@ def _run(repo: str, branch: str, token: str) -> None:
         raise RuntimeError("GitHub's latest build has no spider folder.")
 
     # 2. download and verify
-    _set("downloading", f"Downloading build {sha[:7]}")
-    tar = _github(f"/repos/{repo}/tarball/{sha}", token, timeout=120)
-    tar.raise_for_status()
+    _set("downloading", "Downloading")
+    data = _download(f"/repos/{repo}/tarball/{sha}", token)
     work = Path(tempfile.mkdtemp(prefix="spider-update-"))
     try:
-        with tarfile.open(fileobj=io.BytesIO(tar.content), mode="r:gz") as tf:
+        _set("verifying", "Checking the download is genuine")
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf:
             tf.extractall(work, filter="data")  # refuses absolute paths, links out, devices
         tops = [p for p in work.iterdir() if p.is_dir()]
         if len(tops) != 1:
@@ -127,7 +132,7 @@ def _run(repo: str, branch: str, token: str) -> None:
         # 4. libraries
         new_req, old_req = top / "requirements.txt", APP / "requirements.txt"
         if new_req.exists() and (not old_req.exists() or new_req.read_bytes() != old_req.read_bytes()):
-            _set("installing", "Installing new libraries")
+            _set("libraries", "Installing new libraries")
             pip = subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "-r", str(new_req)],
                                  capture_output=True, text=True, timeout=900)
             if pip.returncode != 0:
@@ -138,18 +143,58 @@ def _run(repo: str, branch: str, token: str) -> None:
                 if test.returncode != 0:
                     raise RuntimeError("The new code wouldn't start, so nothing was changed.")
             shutil.copy2(new_req, old_req)
-        elif test.returncode != 0:
-            raise RuntimeError("The new code wouldn't start, so nothing was changed.")
+
+        else:
+            _set("libraries", "No new libraries needed")
+            if test.returncode != 0:
+                raise RuntimeError("The new code wouldn't start, so nothing was changed.")
 
         # 5. swap and restart
-        _set("installing", f"Switching to build {sha[:7]}")
+        _set("switching", "Putting the new version in place")
         (new_pkg / "build.json").write_text(json.dumps({"commit": sha, "short": sha[:7], "branch": branch, "tree": expected}))
         _swap(new_pkg)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
-    _set("restarting", f"Restarting on build {sha[:7]}")
+    _set("restarting", "Restarting")
     threading.Timer(1.5, lambda: os._exit(0)).start()  # Docker restarts us (restart: unless-stopped)
+
+
+def _download(path: str, token: str) -> bytes:
+    """Stream the download so the progress screen can show how much has arrived."""
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "SPIder-update"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    buf = io.BytesIO()
+    with httpx.stream("GET", f"https://api.github.com{path}", headers=headers, timeout=120, follow_redirects=True) as r:
+        r.raise_for_status()
+        total = r.headers.get("content-length")
+        state.update(bytes=0, total=int(total) if total and total.isdigit() else None)
+        for chunk in r.iter_bytes(64 * 1024):
+            buf.write(chunk)
+            state["bytes"] = buf.tell()
+    return buf.getvalue()
+
+
+def _pretend() -> None:
+    """Demo mode: walk through every step so the progress screen can be seen. Changes nothing."""
+    pause = {"checking": 1.2, "verifying": 1.4, "testing": 1.8, "libraries": 1.0, "switching": 1.2}
+    for st in STEPS:
+        if st == "downloading":
+            _set(st, "Downloading")
+            state.update(bytes=0, total=412_000)
+            while state["bytes"] < state["total"]:
+                time.sleep(0.15)
+                state["bytes"] = min(state["total"], state["bytes"] + 23_000)
+        elif st == "restarting":
+            _set(st, "Restarting")
+            time.sleep(3.5)
+        else:
+            _set(st, {"checking": "Asking GitHub for the latest version", "verifying": "Checking the download is genuine",
+                      "testing": "Checking the new code loads", "libraries": "No new libraries needed",
+                      "switching": "Putting the new version in place"}[st])
+            time.sleep(pause[st])
+    _set("done", "Demo finished. Nothing was changed.")
 
 
 def start() -> None:
@@ -159,13 +204,19 @@ def start() -> None:
     if not _lock.acquire(blocking=False):
         raise RuntimeError("An update is already running.")
     s = settings_store.load()
-    from .version import current
+    from .version import cached, current
     branch = current().get("branch") or "main"
-    state.update(started=time.time())
+    latest = cached() or {}
+    demo = get_settings().demo
+    state.update(started=time.time(), step=0, bytes=0, total=None, demo=demo,
+                 to=latest.get("latest_label") or latest.get("latest"))
 
     def go():
         try:
-            _run(s.update_repo, branch, s.github_token)
+            if demo:
+                _pretend()
+            else:
+                _run(s.update_repo, branch, s.github_token)
         except Exception as exc:
             _set("failed", str(exc) or type(exc).__name__)
         finally:
