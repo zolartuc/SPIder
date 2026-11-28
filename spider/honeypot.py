@@ -317,7 +317,7 @@ def _maybe_alert(ip, port, service, info, dev, when) -> None:
     _last_alert[ip] = when
     who = (dev["name"] or dev["hostname"]) if dev else None
     if dev and dev["known"]:
-        title = f"One of your devices touched the honeypot: {who or ip}"
+        title = f"One of your devices fell into the trapdoor: {who or ip}"
         msg = f"{who or 'A known device'} ({ip}) connected to the fake {LABELS.get(service, service)} on port {port}. It may be infected, or running a scan."
     else:
         title = "Someone is poking around your network"
@@ -464,7 +464,7 @@ async def self_test() -> dict:
     """Knock on our own first open door, so the owner can see it working."""
     open_ports = [p for p, l in listeners.items() if l["status"] == "listening"]
     if not open_ports:
-        raise RuntimeError("The honeypot isn't listening on any port yet. Turn it on in Settings.")
+        raise RuntimeError("The trapdoor isn't listening on any port yet. Turn it on in Settings.")
     port = open_ports[0]
     if get_settings().demo:
         await asyncio.to_thread(record, "127.0.0.1", port, service_for(port), {"username": "test", "password": "test"}, None, True)

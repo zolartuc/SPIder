@@ -75,7 +75,7 @@ const SP = (() => {
     if (e.type === "honeypot") {
       const [ip, port, service] = (e.detail || "").split(" ");
       const label = { ftp: "FTP", ssh: "SSH", telnet: "Telnet", web: "web login", smb: "file sharing", rdp: "Remote Desktop", vnc: "VNC", sql: "database" }[service] || "port";
-      return `${e.name ? who : `<b>${esc(ip)}</b>`} knocked on the honeypot's fake ${esc(label)} <span class="dim mono">:${esc(port)}</span>`;
+      return `${e.name ? who : `<b>${esc(ip)}</b>`} knocked on the trapdoor's fake ${esc(label)} <span class="dim mono">:${esc(port)}</span>`;
     }
     if (e.type === "ip_changed") return `${who} changed address, ${esc(e.detail)}`;
     if (e.type === "blocked") return `${who} was ${esc(e.detail)}`;
@@ -322,7 +322,7 @@ const SP = (() => {
       if (level) li.dataset.level = level;
     };
     row("v-status", v.status_text, v.status);
-    row("v-honey", v.honeypot_unseen ? `Honeypot: ${v.honeypot_unseen} new` : null, "bad");
+    row("v-honey", v.honeypot_unseen ? `Trapdoor: ${v.honeypot_unseen} new` : null, "bad");
     row("v-temp", v.temp_c != null ? `Temp ${v.temp_c.toFixed(1)} \u00b0C` : null, v.temp_level === "hot" ? "bad" : v.temp_level === "warm" ? "warn" : "ok");
     row("v-load", v.load ? `Load ${v.load.map((x) => x.toFixed(2)).join("/")}` : null);
     row("v-mem", v.memory_pct != null ? `Memory ${v.memory_pct.toFixed(1)} %` : null, v.memory_pct >= 90 ? "warn" : null);

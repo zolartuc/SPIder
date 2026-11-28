@@ -49,7 +49,7 @@ NAV = [
     ("activity", "/activity", "Activity"),
     ("traffic", "/traffic", "Traffic"),
     ("pihole", "/pihole", "Pi-hole"),
-    ("honeypot", "/honeypot", "Honeypot"),
+    ("honeypot", "/trapdoor", "Trapdoor"),
 ]
 
 
@@ -185,9 +185,14 @@ def traffic_page(request: Request):
     return page(request, "traffic", "Traffic", "traffic.html")
 
 
-@app.get("/honeypot", response_class=HTMLResponse)
+@app.get("/trapdoor", response_class=HTMLResponse)
 def honeypot_page(request: Request):
-    return page(request, "honeypot", "Honeypot", "honeypot.html")
+    return page(request, "honeypot", "Trapdoor", "honeypot.html")
+
+
+@app.get("/honeypot")
+def honeypot_old_address():
+    return RedirectResponse("/trapdoor", status_code=301)
 
 
 @app.get("/settings", response_class=HTMLResponse)

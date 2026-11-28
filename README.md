@@ -1,6 +1,6 @@
 # SPIder
 
-**A Raspberry Pi home network watchtower and honeypot.** Like a spider in its web, it feels every vibration on your network: every device that joins, every one that leaves, and anything that wanders into the honeypot.
+**A Raspberry Pi home network watchtower and honeypot.** Like a spider in its web, it feels every vibration on your network: every device that joins, every one that leaves, and anything that falls through its trapdoor (a honeypot).
 
 > The name: a spider watches its web, and **SPI** is one of the Raspberry Pi's hardware buses.
 
@@ -72,7 +72,7 @@ Everything stays on your network; only the weekly maker-list download reaches th
 - The router, your Pi-hole and SPIder itself can't be paused. It's DNS-level: great for "the Switch is off until morning", not a firewall
 
 ### Dashboard
-- A live spider-web map of your network, plus separate pages for Devices, Activity, Pi-hole and Honeypot
+- A live spider-web map of your network, plus separate pages for Devices, Activity, Pi-hole and Trapdoor
 - Four themes: **Silk**, **Bridge** (starship console), **Cyanotype** (blueprint) and **Amber** (CRT terminal), saved per account
 - Accounts with **admin** and **viewer** roles. The first visit asks you to create the admin
 - Guests can look without signing in (you can switch this off). Any change needs an admin
@@ -83,7 +83,7 @@ Everything stays on your network; only the weekly maker-list download reaches th
 - Scanning, Pi-hole, phone alerts (with a test button) and user management
 - Hostname, timezone and network changes are applied to the Pi when `SPIDER_ALLOW_SYSTEM_CHANGES=true` and SPIder runs on the Pi as root. Otherwise SPIder shows the exact commands to run
 
-### Honeypot
+### Trapdoor (the honeypot)
 - Fake doors on your LAN that nothing in your home should ever use: FTP 21, Telnet 23, SSH 2222, Windows file sharing 445, Remote Desktop 3389 and a router-style login page on 8081 (change them in Settings)
 - Anything that knocks is recorded: who it was, which door, and the usernames and passwords it tried. Then the connection is dropped. Nothing a visitor sends is ever run
 - A device you've marked as known gets a red warning (it may be infected); one trying 3 or more doors is flagged as scanning

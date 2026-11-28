@@ -1,4 +1,4 @@
-// Honeypot page: who knocked on the fake doors, and what they tried.
+// Trapdoor (honeypot) page: who knocked on the fake doors, and what they tried.
 (() => {
   const { $, esc, ago, api, toast, tidyVendor, isAdmin, signedIn } = SP;
   let data = null;
@@ -58,8 +58,8 @@
       `<li class="door ${esc(l.status)}" title="${esc(l.error || (l.status === "off" ? "Turned off" : "Listening"))}">${esc(l.label)} <span class="mono">${l.port}</span>${l.error ? ` <span class="small">(${esc(l.error)})</span>` : ""}</li>`).join("");
     const real = data.sources.filter((s) => !s.test);
     const hero = $("hp-hero");
-    if (!data.enabled) hero.textContent = "The honeypot is turned off.";
-    else if (!open.length) hero.textContent = "The honeypot couldn't open any of its doors.";
+    if (!data.enabled) hero.textContent = "The trapdoor is turned off.";
+    else if (!open.length) hero.textContent = "The trapdoor couldn't open any of its doors.";
     else if (data.unseen) hero.innerHTML = `<b class="hp-alarm">${data.unseen} new knock${data.unseen === 1 ? "" : "s"}</b> on the fake doors. Have a look below.`;
     else if (real.length) hero.textContent = `Quiet now. ${data.knocks_week} knock${data.knocks_week === 1 ? "" : "s"} in the last week, all seen.`;
     else hero.textContent = `All quiet. ${open.length} fake door${open.length === 1 ? " is" : "s are"} open and nothing has knocked.`;

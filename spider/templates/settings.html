@@ -175,11 +175,11 @@
     </section>
 
     <section class="set" id="honeypot">
-      <h2>Honeypot</h2>
-      <p class="muted">Fake doors that nothing in your home should use. Anything that knocks shows on the Honeypot page. They only face your own network; nothing is opened on your router.</p>
+      <h2>Trapdoor</h2>
+      <p class="muted">SPIder's honeypot: fake doors that nothing in your home should use. Anything that knocks shows on the Trapdoor page. They only face your own network; nothing is opened on your router.</p>
       <form class="form" data-settings-form>
         <fieldset {% if not admin %}disabled{% endif %}>
-          <label class="check"><input type="checkbox" name="honeypot_enabled"> Run the honeypot</label>
+          <label class="check"><input type="checkbox" name="honeypot_enabled"> Run the trapdoor</label>
           <label>Ports <input name="honeypot_ports" spellcheck="false" inputmode="numeric">
             <small class="hint">21 FTP, 23 Telnet, 2222 SSH, 445 Windows file sharing, 3389 Remote Desktop, 8081 a router-style login page. A port the Pi already uses is skipped.</small>
             <small class="error" data-error-for="honeypot_ports"></small></label>
