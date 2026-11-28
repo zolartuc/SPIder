@@ -72,6 +72,11 @@ const SP = (() => {
       const [site, , ...cat] = (e.detail || "").split(" ");
       return `${who} contacted <b class="mono">${esc(site)}</b> for the first time${cat.length ? ` <span class="dim">(${esc(cat.join(" "))})</span>` : ""}`;
     }
+    if (e.type === "honeypot") {
+      const [ip, port, service] = (e.detail || "").split(" ");
+      const label = { ftp: "FTP", ssh: "SSH", telnet: "Telnet", web: "web login", smb: "file sharing", rdp: "Remote Desktop", vnc: "VNC", sql: "database" }[service] || "port";
+      return `${e.name ? who : `<b>${esc(ip)}</b>`} knocked on the honeypot's fake ${esc(label)} <span class="dim mono">:${esc(port)}</span>`;
+    }
     if (e.type === "ip_changed") return `${who} changed address, ${esc(e.detail)}`;
     if (e.type === "blocked") return `${who} was ${esc(e.detail)}`;
     if (e.type === "unblocked") return `${who} can use the internet again <span class="dim">(${esc(e.detail)})</span>`;
@@ -302,6 +307,7 @@ const SP = (() => {
       }
     }, 1000);
   }
+  let refreshVitals = () => {};
   // ---------- status panel under the logo (like Pi-hole's)
   async function loadVitals() {
     const box = $("vitals");
@@ -316,6 +322,7 @@ const SP = (() => {
       if (level) li.dataset.level = level;
     };
     row("v-status", v.status_text, v.status);
+    row("v-honey", v.honeypot_unseen ? `Honeypot: ${v.honeypot_unseen} new` : null, "bad");
     row("v-temp", v.temp_c != null ? `Temp ${v.temp_c.toFixed(1)} \u00b0C` : null, v.temp_level === "hot" ? "bad" : v.temp_level === "warm" ? "warn" : "ok");
     row("v-load", v.load ? `Load ${v.load.map((x) => x.toFixed(2)).join("/")}` : null);
     row("v-mem", v.memory_pct != null ? `Memory ${v.memory_pct.toFixed(1)} %` : null, v.memory_pct >= 90 ? "warn" : null);
@@ -324,11 +331,12 @@ const SP = (() => {
   }
   // Cheap to read (a few small files), so refresh every 3 s, but only while the tab is visible.
   loadVitals();
+  refreshVitals = loadVitals;
   setInterval(() => { if (!document.hidden) loadVitals(); }, 3_000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) loadVitals(); });
 
   refreshVersion();
   setInterval(refreshVersion, 10 * 60_000);
 
-  return { setLayout, refreshVersion: () => refreshVersion(), $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
+  return { refreshVitals: () => refreshVitals(), setLayout, refreshVersion: () => refreshVersion(), $, esc, ago, fmt, api, toast, shortName, clip, eventWho, eventLine, tidyVendor, EVENT_TEXT, setTheme, signedIn, isAdmin };
 })();

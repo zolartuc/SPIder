@@ -132,6 +132,24 @@ for ip, source, values in DEMO_FACTS:
     id_facts.add_many(mac[ip], source, values)
 id_run.classify_all()
 
+# Honeypot: the unnamed Tuya plug tried Telnet logins (a classic infected-gadget move),
+# and the unknown phone ran a scan app across several doors.
+from spider import honeypot  # noqa: E402
+KNOCKS = [
+    (dict(hours=30), "192.168.1.31", 445, {"first_bytes": "·SMBr·····"}),
+    (dict(hours=30, minutes=-1), "192.168.1.31", 3389, {"first_bytes": "····Cookie: mstshash=admin", "username": "admin"}),
+    (dict(hours=30, minutes=-2), "192.168.1.31", 8081, {"request": "GET / HTTP/1.1", "client": "Fing/12.4 (Android)"}),
+    (dict(hours=30, minutes=-2), "192.168.1.31", 2222, {"client": "SSH-2.0-libssh_0.9.6"}),
+    (dict(minutes=47), "192.168.1.40", 23, {"username": "root", "password": "xc3511"}),
+    (dict(minutes=46), "192.168.1.40", 23, {"username": "admin", "password": "admin"}),
+    (dict(minutes=44), "192.168.1.40", 23, {"username": "root", "password": "vizxv"}),
+    (dict(minutes=9), "192.168.1.40", 23, {"username": "default", "password": "default"}),
+]
+for ago, ip, port, info in KNOCKS:
+    honeypot._record(ip, port, honeypot.service_for(port), info, NOW - __import__("datetime").timedelta(**ago))
+with connect() as conn:
+    conn.execute("UPDATE honeypot_hits SET seen = 1 WHERE ip = '192.168.1.31'")
+
 admin = auth.create_user("demo", "demo-password", "admin")
 auth.create_user("guest", "guest-password", "viewer")
 auth.set_theme(admin["id"], "bridge")

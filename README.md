@@ -83,8 +83,12 @@ Everything stays on your network; only the weekly maker-list download reaches th
 - Scanning, Pi-hole, phone alerts (with a test button) and user management
 - Hostname, timezone and network changes are applied to the Pi when `SPIDER_ALLOW_SYSTEM_CHANGES=true` and SPIder runs on the Pi as root. Otherwise SPIder shows the exact commands to run
 
-### Honeypot (next)
-- See the [roadmap](#roadmap)
+### Honeypot
+- Fake doors on your LAN that nothing in your home should ever use: FTP 21, Telnet 23, SSH 2222, Windows file sharing 445, Remote Desktop 3389 and a router-style login page on 8081 (change them in Settings)
+- Anything that knocks is recorded: who it was, which door, and the usernames and passwords it tried. Then the connection is dropped. Nothing a visitor sends is ever run
+- A device you've marked as known gets a red warning (it may be infected); one trying 3 or more doors is flagged as scanning
+- Alerts on the Honeypot page, in the status panel, in Activity and through ntfy, plus one-click Block in Pi-hole
+- Only faces your own network: nothing is opened on your router
 
 ## Quick start (any PC, for development)
 
@@ -188,8 +192,8 @@ Settings live in `.env`; see [`.env.example`](.env.example) for all of them.
 - [x] Pi-hole stats
 - [x] Accounts, roles and a Settings page
 - [x] Separate pages and four themes
-- [ ] **Honeypot, phase 1 (internal canary):** fake SSH, Telnet and web login on the LAN. Any connection means something on your network is scanning, which deserves an instant alert
-- [ ] Honeypot: record attempted usernames, passwords and shell commands
+- [x] **Honeypot, phase 1 (internal canary):** fake SSH, Telnet and web login on the LAN. Any connection means something on your network is scanning, which deserves an instant alert
+- [x] Honeypot: record attempted usernames and passwords
 - [ ] Per-device open-port scan ("what is this smart plug listening on?")
 - [ ] Pi-hole: top blocked domains, and queries per device matched to the device list
 - [ ] Device online/offline timeline chart

@@ -59,6 +59,12 @@ class AppSettings(BaseModel):
     ntfy_topic: str = ""
     alert_new_device: bool = True
     alert_new_contact: bool = False
+    alert_honeypot: bool = True
+
+    # Honeypot
+    honeypot_enabled: bool = True
+    honeypot_ports: str = "21, 23, 2222, 445, 3389, 8081"
+    honeypot_ignore: str = ""   # addresses allowed to knock (your own security scanner, say)
 
     # Access
     guest_view: bool = True
@@ -141,6 +147,29 @@ class AppSettings(BaseModel):
                 raise ValueError("That's too big to scan. Use /20 or smaller, like /24.")
             return str(net)
         return v
+
+    @field_validator("honeypot_ports")
+    @classmethod
+    def valid_ports(cls, v):
+        from .honeypot import parse_ports
+        try:
+            ports = parse_ports(v)
+        except ValueError:
+            raise ValueError("List port numbers (1 to 65535) separated by commas, like 23, 2222, 3389.")
+        if 8080 in ports or len(ports) > 12:
+            raise ValueError("Up to 12 ports, and not 8080 (SPIder's own dashboard).")
+        return ", ".join(str(p) for p in ports)
+
+    @field_validator("honeypot_ignore")
+    @classmethod
+    def valid_ignore(cls, v):
+        parts = [p.strip() for p in re.split(r"[,\s]+", v) if p.strip()]
+        for p in parts:
+            try:
+                ipaddress.ip_address(p)
+            except ValueError:
+                raise ValueError(f"{p} isn't an IP address. Separate addresses with commas.")
+        return ", ".join(parts)
 
     @field_validator("update_repo")
     @classmethod

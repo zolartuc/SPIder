@@ -1,16 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="honeypot-page">
-  <p class="lead-text">The honeypot isn't set up yet.</p>
-  <p class="muted">
-    It will put a fake login on your network that looks like a real device. Nothing legitimate should
-    ever touch it, so anything that does is worth knowing about: a compromised gadget, or someone
-    poking around your Wi-Fi.
-  </p>
-  <ol class="plan">
-    <li><b>Fake SSH and router login on your LAN.</b> Any connection triggers an alert straight away.</li>
-    <li><b>Record what was tried.</b> The usernames, passwords and commands an intruder attempts.</li>
-    <li><b>Open it to the internet, safely.</b> Once your network can keep the Pi isolated, see who knocks from outside, on a map.</li>
-  </ol>
+  <div class="hp-head">
+    <p class="lead-text" id="hp-hero">Checking the fake doors…</p>
+    <p class="muted">
+      SPIder pretends to have a few doors open that nothing in your home should ever use. When something
+      knocks, it's written down here: who it was, which door, and what they tried. Nothing a visitor sends is ever run.
+    </p>
+    <ul class="hp-doors" id="hp-doors" aria-label="Fake doors"></ul>
+    <div class="hp-actions">
+      {% if user %}<button type="button" class="secondary" id="hp-seen" hidden>Mark all as seen</button>{% endif %}
+      {% if user and user.role == "admin" %}
+      <button type="button" class="secondary" id="hp-test">Knock on it myself</button>
+      <a href="/settings#honeypot" class="small">Choose the doors</a>
+      {% endif %}
+    </div>
+  </div>
+  <div id="hp-list" class="hp-list" aria-live="polite"></div>
 </section>
 {% endblock %}
+{% block scripts %}<script src="{{ asset('js/honeypot.js') }}"></script>{% endblock %}

@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 
-from . import __version__, alerts, auth, blocking, selfupdate, settings_store, system, version
+from . import __version__, alerts, auth, blocking, honeypot, selfupdate, settings_store, system, version
 from .config import get_settings
 from .db import connect, init_db
 from .pihole import client as pihole
@@ -113,7 +113,9 @@ async def lifespan(app: FastAPI):
     init_db()
     tasks = [asyncio.create_task(scan_loop()), asyncio.create_task(traffic_loop()), asyncio.create_task(blocks_loop()),
              asyncio.create_task(update_loop()), asyncio.create_task(identify_loop())]
+    await honeypot.start()
     yield
+    await honeypot.stop()
     for t in tasks:
         t.cancel()
 
@@ -325,6 +327,8 @@ def api_update_settings(changes: dict, _=Depends(auth.require_admin)):
         return JSONResponse({"detail": msg, "field": field}, status_code=422)
     if changed & {"pihole_url", "pihole_password"}:
         pihole.reset()
+    if changed & {"honeypot_enabled", "honeypot_ports"}:
+        honeypot.restart_soon()
     return {"changed": sorted(changed), "values": settings_store.public(), "apply": system.apply(new, changed)}
 
 
@@ -344,7 +348,7 @@ def api_vitals(_=Depends(viewer)):
     v = system.vitals()
     t = v.get("temp_c")
     v["temp_level"] = None if t is None else "hot" if t >= 75 else "warm" if t >= 60 else "ok"
-    return {"status": status, "status_text": text, **v}
+    return {"status": status, "status_text": text, **v, "honeypot_unseen": honeypot.unseen()}
 
 
 @app.get("/api/system")
@@ -542,6 +546,37 @@ async def traffic_flags(_=Depends(viewer)):
 @app.post("/api/flags/{key}/ack")
 async def traffic_flag_ack(key: str, _=Depends(auth.require_user)):
     return {"cleared": await asyncio.to_thread(traffic_views.acknowledge, key)}
+
+
+# --------------------------------------------------------------------------- honeypot
+
+@app.get("/api/honeypot")
+async def honeypot_overview(request: Request, _=Depends(viewer)):
+    user = auth.current_user(request)
+    return await asyncio.to_thread(honeypot.overview, bool(user and user.get("role") == "admin"))
+
+
+class SeenBody(BaseModel):
+    key: str | None = None   # a device's MAC or "ip:<address>"; None = everything
+
+
+@app.post("/api/honeypot/seen")
+async def honeypot_seen(body: SeenBody, _=Depends(auth.require_user)):
+    return {"cleared": await asyncio.to_thread(honeypot.mark_seen, body.key)}
+
+
+@app.post("/api/honeypot/test")
+async def honeypot_test(_=Depends(auth.require_admin)):
+    try:
+        return await honeypot.self_test()
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@app.delete("/api/honeypot/tests")
+async def honeypot_clear_tests(_=Depends(auth.require_admin)):
+    await asyncio.to_thread(honeypot.clear_tests)
+    return {"ok": True}
 
 
 def run() -> None:
