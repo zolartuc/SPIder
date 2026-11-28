@@ -64,7 +64,8 @@ async def scan_loop() -> None:
             await scan_now()
         except Exception:
             log.exception("Background scan crashed")
-        await asyncio.sleep(settings_store.get("scan_interval"))
+        # Just after boot the Pi may not be on the network yet: try again soon rather than in 5 minutes.
+        await asyncio.sleep(20 if watchtower.last_scan.get("waiting") else settings_store.get("scan_interval"))
 
 
 async def identify_loop() -> None:
@@ -343,7 +344,9 @@ def api_vitals(_=Depends(viewer)):
     from datetime import datetime, timezone
     last = watchtower.last_scan
     interval = settings_store.get("scan_interval")
-    if last.get("error"):
+    if last.get("waiting"):
+        status, text = "wait", "Waiting for network"
+    elif last.get("error"):
         status, text = "bad", "Scan failed"
     elif not last.get("at"):
         status, text = "wait", "Starting"

@@ -52,8 +52,20 @@ def local_ip() -> str:
         s.close()
 
 
+class NotOnNetwork(RuntimeError):
+    pass
+
+
+def network_ready() -> str:
+    """This machine's LAN address, or NotOnNetwork while it hasn't got one (just after boot)."""
+    ip = local_ip()
+    if ipaddress.ip_address(ip).is_loopback:
+        raise NotOnNetwork("The Pi isn't on the network yet. SPIder will try again shortly.")
+    return ip
+
+
 def default_subnet() -> str:
-    return str(ipaddress.ip_network(f"{local_ip()}/24", strict=False))
+    return str(ipaddress.ip_network(f"{network_ready()}/24", strict=False))
 
 
 def normalise_mac(mac: str) -> str:
@@ -67,7 +79,53 @@ def is_unicast(mac: str) -> bool:
     return not (int(mac[:2], 16) & 1)  # multicast bit
 
 
-def own_mac() -> str:
+SYS_NET = Path("/sys/class/net")
+
+
+def _iface_ipv4(name: str) -> str | None:
+    try:
+        import fcntl
+        import struct
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            packed = fcntl.ioctl(s.fileno(), 0x8915, struct.pack("256s", name[:15].encode()))  # SIOCGIFADDR
+        return socket.inet_ntoa(packed[20:24])
+    except (OSError, ImportError):
+        return None
+
+
+def own_interfaces() -> dict[str, dict]:
+    """Every network card on this machine (Linux): name -> {mac, ip, physical}."""
+    out = {}
+    if not SYS_NET.is_dir():
+        return out
+    for d in SYS_NET.iterdir():
+        try:
+            mac = (d / "address").read_text().strip().lower()
+        except OSError:
+            continue
+        if d.name == "lo" or not mac or mac == "00:00:00:00:00:00":
+            continue
+        out[d.name] = {"mac": mac, "ip": _iface_ipv4(d.name), "physical": (d / "device").exists()}
+    return out
+
+
+def own_mac(ip: str | None = None) -> str:
+    """The hardware ID of the card that holds this machine's LAN address.
+
+    Not uuid.getnode(): on a Pi running Docker that often picks one of Docker's virtual
+    cards (02:42:...), and a different one after each restart.
+    """
+    ip = ip or local_ip()
+    cards = own_interfaces()
+    for c in cards.values():
+        if c["ip"] == ip:
+            return c["mac"]
+    for name in ("eth0", "end0", "wlan0"):
+        if name in cards:
+            return cards[name]["mac"]
+    physical = sorted(n for n, c in cards.items() if c["physical"])
+    if physical:
+        return cards[physical[0]]["mac"]
     node = uuid.getnode()
     return ":".join(f"{(node >> s) & 0xFF:02x}" for s in range(40, -1, -8))
 
@@ -160,6 +218,7 @@ def resolve_hostnames(hosts: list[Host], timeout: float = 3.0) -> None:
 
 def scan(subnet: str | None = None, method: str = "auto") -> tuple[list[Host], str]:
     """Scan the network. Returns (hosts, method_actually_used)."""
+    me = network_ready()
     subnet = subnet or default_subnet()
     hosts: list[Host] = []
     used = method
@@ -179,9 +238,9 @@ def scan(subnet: str | None = None, method: str = "auto") -> tuple[list[Host], s
         used = "ping"
 
     # This machine never appears in its own ARP table - add it.
-    me = local_ip()
+    hosts = [h for h in hosts if not ipaddress.ip_address(h.ip).is_loopback]
     if not any(h.ip == me for h in hosts) and ipaddress.ip_address(me) in ipaddress.ip_network(subnet, strict=False):
-        hosts.append(Host(ip=me, mac=own_mac(), hostname=socket.gethostname()))
+        hosts.append(Host(ip=me, mac=own_mac(me), hostname=socket.gethostname()))
 
     resolve_hostnames([h for h in hosts if not h.hostname])
     return hosts, used

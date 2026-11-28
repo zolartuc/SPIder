@@ -13,6 +13,39 @@ log = logging.getLogger("spider.watchtower")
 last_scan: dict = {"at": None, "method": None, "subnet": None, "found": 0, "error": None}
 
 
+def _forget(conn, mac: str) -> None:
+    for table in ("devices", "device_facts", "blocks"):
+        conn.execute(f"DELETE FROM {table} WHERE mac = ?", (mac,))
+    conn.execute("DELETE FROM events WHERE mac = ?", (mac,))
+
+
+def tidy_self() -> int:
+    """Remove copies of this machine that older versions recorded by mistake.
+
+    * anything at a 127.x address (this machine talking to itself, never a real device);
+    * this machine under one of its other cards' hardware IDs (usually Docker's 02:42:...).
+    A name or "known" mark on a copy is moved to the real entry if that has none.
+    """
+    me_ip = scanner.local_ip()
+    real = scanner.own_mac(me_ip)
+    others = {c["mac"] for c in scanner.own_interfaces().values()} - {real}
+    removed = 0
+    with connect() as conn:
+        rows = conn.execute("SELECT * FROM devices").fetchall()
+        copies = [r for r in rows if r["mac"] != real and ((r["ip"] or "").startswith("127.") or r["mac"] in others)]
+        keep = conn.execute("SELECT * FROM devices WHERE mac = ?", (real,)).fetchone()
+        for r in copies:
+            if keep:
+                conn.execute("UPDATE devices SET name = COALESCE(name, ?), kind_user = COALESCE(kind_user, ?), "
+                             "known = MAX(known, ?), first_seen = MIN(first_seen, ?) WHERE mac = ?",
+                             (r["name"], r["kind_user"], r["known"], r["first_seen"], real))
+            _forget(conn, r["mac"])
+            removed += 1
+    if removed:
+        log.info("Removed %d stray cop%s of this machine from the device list", removed, "y" if removed == 1 else "ies")
+    return removed
+
+
 def run_scan() -> dict:
     s = settings_store.load()
     if get_settings().demo:
@@ -21,9 +54,14 @@ def run_scan() -> dict:
             online = conn.execute("SELECT COUNT(*) FROM devices WHERE online = 1").fetchone()[0]
         last_scan.update(at=now(), method="arp", subnet=s.scan_subnet or "192.168.1.0/24", found=online, error=None)
         return last_scan
-    subnet = s.scan_subnet or scanner.default_subnet()
+    subnet = s.scan_subnet or None
     try:
+        subnet = subnet or scanner.default_subnet()
         hosts, method = scanner.scan(subnet, s.scan_method)
+    except scanner.NotOnNetwork as exc:
+        log.info("%s", exc)
+        last_scan.update(at=now(), error=str(exc), subnet=subnet, waiting=True)
+        return last_scan
     except Exception as exc:
         log.exception("Scan failed")
         last_scan.update(at=now(), error=str(exc), subnet=subnet)
@@ -73,6 +111,10 @@ def run_scan() -> dict:
             tags="warning,bird",
         )
 
-    last_scan.update(at=ts, method=method, subnet=subnet, found=len(hosts), error=None)
+    try:
+        tidy_self()
+    except Exception:
+        log.exception("Couldn't tidy SPIder's own entries")
+    last_scan.update(at=ts, method=method, subnet=subnet, found=len(hosts), error=None, waiting=False)
     log.info("Scan via %s found %d hosts (%d new)", method, len(hosts), len(new_devices))
     return last_scan
